@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SBB Fahrten-Tracker</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚂</text></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --red: #eb0000; --red-dark: #c50000; --red-light: #fff1f1;
+    --green: #2e7d32; --green-light: #e8f5e9;
+    --g50: #f8f9fa; --g200: #e9ecef; --g300: #dee2e6;
+    --g400: #ced4da; --g500: #adb5bd; --g600: #868e96; --g700: #495057; --g900: #212529;
+    --radius: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--g50); color: var(--g900);
+    min-height: 100dvh; -webkit-font-smoothing: antialiased;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
+  }
+  .header { background: var(--red); color: white; padding: 20px 16px; }
+  .header-inner { max-width: 560px; margin: 0 auto; }
+  .header h1 { font-size: 20px; font-weight: 700; }
+  .header p { font-size: 13px; opacity: 0.8; margin-top: 4px; }
+  .container { max-width: 560px; margin: 0 auto; padding: 16px; }
+
+  .card { background: white; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 12px; padding: 16px; }
+  .card-label { font-size: 13px; font-weight: 600; color: var(--g700); margin-bottom: 8px; }
+  .url-row { display: flex; gap: 8px; }
+  .url-input {
+    flex: 1; padding: 11px 12px; border: 1px solid var(--g300); border-radius: 8px;
+    font-size: 14px; font-family: inherit; outline: none; min-width: 0;
+  }
+  .url-input:focus { border-color: var(--red); }
+  .url-input::placeholder { color: var(--g400); }
+  .btn {
+    padding: 11px 18px; border: none; border-radius: 8px; font-size: 14px;
+    font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-red { background: var(--red); color: white; }
+  .btn-red:hover { background: var(--red-dark); }
+  .btn-green { background: var(--green); color: white; }
+
+  .preview {
+    background: var(--g50); border: 1px solid var(--g200); border-radius: 10px;
+    padding: 14px; margin-top: 12px; display: none;
+  }
+  .preview.show { display: block; }
+  .preview-route { font-size: 16px; font-weight: 700; }
+  .preview-via { font-size: 12px; color: var(--g500); margin-top: 2px; display: none; }
+  .preview-meta { font-size: 13px; color: var(--g600); margin: 6px 0 12px; }
+  .preview-fields { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .preview-fields .cur { font-size: 14px; color: var(--g600); font-weight: 600; }
+  .preview-fields input {
+    width: 110px; padding: 9px 12px; border: 1px solid var(--g300); border-radius: 8px;
+    font-size: 15px; font-weight: 600; font-family: inherit; outline: none;
+  }
+  .preview-fields input:focus { border-color: var(--red); }
+  .preview-fields select {
+    padding: 9px 10px; border: 1px solid var(--g300); border-radius: 8px;
+    font-size: 13px; font-family: inherit; background: white;
+  }
+
+  .msg {
+    padding: 12px 16px; border-radius: var(--radius); margin-bottom: 12px;
+    font-size: 13px; line-height: 1.5;
+  }
+  .msg-error { background: var(--red-light); border: 1px solid #ffcdd2; color: #c62828; }
+  .msg-success { background: var(--green-light); border: 1px solid #a5d6a7; color: var(--green); }
+
+  .btn-add {
+    width: 100%; padding: 12px; background: white; border: 1.5px dashed var(--g300);
+    border-radius: var(--radius); font-size: 13px; font-weight: 600; color: var(--g600);
+    cursor: pointer; font-family: inherit; margin-bottom: 12px;
+  }
+  .manual-form { display: none; }
+  .manual-form.show { display: block; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .form-input {
+    padding: 10px 12px; border: 1px solid var(--g300); border-radius: 8px;
+    font-size: 14px; font-family: inherit; outline: none; width: 100%;
+  }
+  .form-input:focus { border-color: var(--red); }
+  .form-actions { display: flex; gap: 8px; }
+  .btn-sec {
+    padding: 10px 16px; background: none; color: var(--g600); border: 1px solid var(--g300);
+    border-radius: 8px; font-size: 14px; cursor: pointer; font-family: inherit;
+  }
+
+  .summary {
+    background: white; border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 16px 20px; margin-bottom: 12px; display: none;
+    align-items: center; justify-content: space-between;
+  }
+  .summary.show { display: flex; }
+  .s-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--g500); font-weight: 600; }
+  .s-total { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; margin-top: 2px; }
+  .s-count { font-size: 13px; color: var(--g500); margin-left: 8px; font-weight: 400; }
+  .btn-txt {
+    background: none; border: none; font-size: 12px; color: var(--g500);
+    cursor: pointer; padding: 8px 12px; border-radius: 8px; font-family: inherit;
+  }
+  .btn-txt:hover { color: var(--red); background: var(--red-light); }
+
+  .trip-list { display: flex; flex-direction: column; gap: 8px; }
+  .trip-row {
+    display: flex; align-items: center; gap: 12px;
+    background: white; border-radius: var(--radius); padding: 12px 16px; box-shadow: var(--shadow);
+  }
+  .t-num {
+    width: 28px; height: 28px; background: var(--red-light); color: var(--red);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; flex-shrink: 0;
+  }
+  .t-info { flex: 1; min-width: 0; }
+  .t-route { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; }
+  .t-route span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .t-arrow { color: var(--g400); flex-shrink: 0; font-size: 11px; }
+  .t-meta { display: flex; gap: 10px; font-size: 12px; color: var(--g500); margin-top: 2px; }
+  .t-price { font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  .btn-del {
+    background: none; border: none; color: var(--g400); cursor: pointer;
+    padding: 6px; border-radius: 6px; flex-shrink: 0; display: flex;
+  }
+  .btn-del:hover { color: var(--red); background: var(--red-light); }
+  .btn-del svg { width: 16px; height: 16px; }
+  .empty { text-align: center; color: var(--g400); font-size: 13px; padding: 36px 0; }
+  .export { display: none; margin-top: 12px; gap: 8px; }
+  .export.show { display: flex; }
+  .export button {
+    flex: 1; padding: 10px; border: 1px solid var(--g300); background: white;
+    border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; color: var(--g700);
+  }
+</style>
+</head>
+<body>
+
+<div class="header"><div class="header-inner">
+  <h1>🚂 SBB Fahrten-Tracker</h1>
+  <p>SBB-Link einfügen, Preis ergänzen, fertig</p>
+</div></div>
+
+<div class="container">
+  <div class="card">
+    <div class="card-label">SBB-Verbindungslink</div>
+    <div class="url-row">
+      <input type="url" class="url-input" id="urlIn" placeholder="sbb.ch Link hier einfügen..." autocomplete="off">
+      <button class="btn btn-red" onclick="parseUrl()">Lesen</button>
+    </div>
+    <div class="preview" id="pv">
+      <div class="preview-route" id="pvR"></div>
+      <div class="preview-via" id="pvV"></div>
+      <div class="preview-meta" id="pvM"></div>
+      <div class="preview-fields">
+        <span class="cur">CHF</span>
+        <input type="number" step="0.05" id="pvP" placeholder="0.00" inputmode="decimal">
+        <select id="pvK"><option value="2. Klasse">2. Kl.</option><option value="1. Klasse">1. Kl.</option></select>
+        <button class="btn btn-green" onclick="confirm_()">Hinzufügen</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="msgs"></div>
+
+  <button class="btn-add" id="btnM" onclick="togM()">+ Manuell erfassen</button>
+  <div class="card manual-form" id="mForm">
+    <div class="form-grid">
+      <input class="form-input" id="mV" placeholder="Von">
+      <input class="form-input" id="mN" placeholder="Nach">
+      <input class="form-input" id="mP" placeholder="CHF" type="number" step="0.05" inputmode="decimal">
+      <input class="form-input" id="mD" type="date">
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-red" style="flex:1" onclick="addM()">Hinzufügen</button>
+      <button class="btn-sec" onclick="togM()">Abbrechen</button>
+    </div>
+  </div>
+
+  <div class="summary" id="sum"><div><div class="s-label">Total</div><div class="s-total" id="tot"></div></div><button class="btn-txt" onclick="clr()">Alle löschen</button></div>
+  <div class="trip-list" id="tl"></div>
+  <div class="empty" id="emp">Noch keine Fahrten erfasst.</div>
+  <div class="export" id="exp"><button onclick="csv()">📄 CSV</button><button onclick="jsn()">📋 JSON</button></div>
+</div>
+
+<script>
+const ST={
+'8505000':'Luzern','8503000':'Zürich HB','8507000':'Bern','8500010':'Basel SBB',
+'8506000':'Lausanne','8501008':'Genève','8506302':'Montreux','8505004':'Zug',
+'8503006':'Zürich Oerlikon','8503020':'Zürich Stadelhofen','8501120':'Genève-Aéroport',
+'8500218':'Olten','8503510':'Winterthur','8506100':'Fribourg/Freiburg',
+'8505300':'Arth-Goldau','8507100':'Thun','8507483':'Interlaken Ost',
+'8507485':'Interlaken West','8508050':'Chur','8505200':'Rotkreuz',
+'8504100':'St. Gallen','8504300':'Romanshorn','8506400':'Visp','8506409':'Brig',
+'8501609':'Sion','8504500':'Buchs SG','8503504':'Schaffhausen',
+'8505226':'Engelberg','8508100':'Landquart','8508200':'Davos Platz',
+'8508500':'St. Moritz','8503203':'Rapperswil','8500073':'Aarau',
+'8500126':'Solothurn','8501689':'Martigny','8505002':'Emmenbrücke',
+'8509411':'Lugano','8509000':'Bellinzona','8509040':'Locarno',
+'8501000':'Biel/Bienne','8501100':'Neuchâtel','8503308':'Baden',
+'8500020':'Basel Bad Bf','8503001':'Zürich Flughafen',
+};
+
+let trips=JSON.parse(localStorage.getItem('sbb-t')||'[]'), pend=null;
+
+async function parseSbb(url){
+  const u=new URL(url);
+  if(!u.hostname.includes('sbb.ch')) throw new Error('Kein SBB-Link');
+  const p=u.searchParams;
+
+  const stops=p.get('stops');
+  if(stops){
+    const parts=stops.split('~');
+    if(parts.length<2) throw new Error('Start/Ziel nicht erkennbar');
+    const pn=s=>decodeURIComponent(s).replace(/_I\d+$/,'').replace(/\+/g,' ').trim();
+    const ns=parts.map(pn);
+    return{von:ns[0],nach:ns[ns.length-1],via:ns.length>2?ns.slice(1,-1):[],datum:p.get('day')||null,zeit:p.get('time')?p.get('time').replace('_',':'):null};
+  }
+
+  const tid=p.get('tripId');
+  if(tid){
+    const segs=tid.split('.');
+    const last=segs[segs.length-1];
+    let b=last.replace(/-/g,'+').replace(/_/g,'/');
+    b+='='.repeat((4-b.length%4)%4);
+    const raw=atob(b);
+    const bytes=new Uint8Array(raw.length);
+    for(let i=0;i<raw.length;i++) bytes[i]=raw.charCodeAt(i);
+    const ds=new DecompressionStream('deflate');
+    const w=ds.writable.getWriter(); w.write(bytes); w.close();
+    const buf=await new Response(ds.readable).arrayBuffer();
+    const j=JSON.parse(new TextDecoder().decode(new Uint8Array(buf)));
+    const r=id=>ST[id]||('Station '+id);
+    return{von:r(j.O),nach:r(j.D),via:(j.vias||[]).filter(Boolean).map(v=>typeof v==='object'?(r(v.id||v)):r(v)),datum:j.d||null,zeit:j.t||null};
+  }
+  throw new Error('URL-Format nicht erkannt');
+}
+
+async function parseUrl(){
+  const raw=document.getElementById('urlIn').value.trim();
+  if(!raw) return;
+  try{
+    const d=await parseSbb(raw);
+    pend=d;
+    document.getElementById('pvR').textContent=d.von+' → '+d.nach;
+    const vEl=document.getElementById('pvV');
+    if(d.via.length){vEl.textContent='via '+d.via.join(', ');vEl.style.display='block';}
+    else vEl.style.display='none';
+    const pts=[];
+    if(d.datum) pts.push(fmtD(d.datum));
+    if(d.zeit) pts.push(d.zeit+' Uhr');
+    document.getElementById('pvM').textContent=pts.join(' · ');
+    document.getElementById('pvP').value='';
+    document.getElementById('pv').classList.add('show');
+    setTimeout(()=>document.getElementById('pvP').focus(),100);
+  }catch(e){msg(e.message,'error');}
+}
+
+function confirm_(){
+  if(!pend) return;
+  const pr=parseFloat(document.getElementById('pvP').value);
+  if(isNaN(pr)||pr<=0){msg('Bitte Preis eingeben.','error');return;}
+  trips.push({id:uid(),von:pend.von,nach:pend.nach,preis:pr,datum:pend.datum,klasse:document.getElementById('pvK').value});
+  save(); msg(pend.von+' → '+pend.nach+' hinzugefügt!','success');
+  pend=null; document.getElementById('pv').classList.remove('show'); document.getElementById('urlIn').value='';
+}
+
+document.getElementById('pvP').addEventListener('keydown',e=>{if(e.key==='Enter')confirm_();});
+document.getElementById('urlIn').addEventListener('keydown',e=>{if(e.key==='Enter')parseUrl();});
+
+function togM(){const f=document.getElementById('mForm'),b=document.getElementById('btnM'),s=!f.classList.contains('show');f.classList.toggle('show',s);b.style.display=s?'none':'block';}
+function addM(){
+  const v=document.getElementById('mV').value.trim(),n=document.getElementById('mN').value.trim(),
+    pr=parseFloat(document.getElementById('mP').value),d=document.getElementById('mD').value;
+  if(!v||!n||isNaN(pr)){msg('Von, Nach und Preis ausfüllen.','error');return;}
+  trips.push({id:uid(),von:v,nach:n,preis:pr,datum:d||null,klasse:null});save();
+  msg(v+' → '+n+' hinzugefügt!','success');
+  ['mV','mN','mP','mD'].forEach(id=>document.getElementById(id).value='');togM();
+}
+
+function render(){
+  const l=document.getElementById('tl'),s=document.getElementById('sum'),e=document.getElementById('emp'),x=document.getElementById('exp');
+  if(!trips.length){l.innerHTML='';s.classList.remove('show');e.style.display='block';x.classList.remove('show');return;}
+  e.style.display='none';x.classList.add('show');
+  const tot=trips.reduce((a,t)=>a+t.preis,0),n=trips.length;
+  s.classList.add('show');
+  document.getElementById('tot').innerHTML='CHF '+tot.toFixed(2)+'<span class="s-count">'+n+(n===1?' Fahrt':' Fahrten')+'</span>';
+  l.innerHTML=trips.map((t,i)=>`<div class="trip-row"><div class="t-num">${i+1}</div><div class="t-info"><div class="t-route"><span>${esc(t.von)}</span><span class="t-arrow">→</span><span>${esc(t.nach)}</span></div><div class="t-meta">${t.datum?'<span>'+fmtD(t.datum)+'</span>':''}${t.klasse?'<span>'+esc(t.klasse)+'</span>':''}</div></div><div class="t-price">CHF ${t.preis.toFixed(2)}</div><button class="btn-del" onclick="del(${i})"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button></div>`).join('');
+}
+
+function save(){localStorage.setItem('sbb-t',JSON.stringify(trips));render();}
+function del(i){trips.splice(i,1);save();}
+function clr(){if(confirm('Alle Fahrten löschen?')){trips=[];save();}}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function fmtD(d){try{return new Date(d+'T00:00:00').toLocaleDateString('de-CH');}catch{return d;}}
+function msg(t,type='info'){const el=document.createElement('div');el.className='msg msg-'+type;el.textContent=t;document.getElementById('msgs').prepend(el);setTimeout(()=>el.remove(),4000);}
+
+function csv(){
+  const r=['Von,Nach,Preis,Datum,Klasse'];
+  trips.forEach(t=>r.push(`"${t.von}","${t.nach}",${t.preis.toFixed(2)},${t.datum||''},${t.klasse||''}`));
+  r.push(`"","TOTAL",${trips.reduce((s,t)=>s+t.preis,0).toFixed(2)},,`);
+  dl('sbb-fahrten.csv','text/csv',r.join('\n'));
+}
+function jsn(){const tot=trips.reduce((s,t)=>s+t.preis,0);dl('sbb-fahrten.json','application/json',JSON.stringify({fahrten:trips,total:Math.round(tot*100)/100,anzahl:trips.length},null,2));}
+function dl(n,t,c){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;document.body.append(a);a.click();a.remove();}
+
+render();
+</script>
+</body>
+</html>
