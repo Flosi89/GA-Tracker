@@ -3,8 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#eb0000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SBB Tracker">
+<link rel="manifest" href="manifest.json">
 <title>SBB Fahrten-Tracker</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚂</text></svg>">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -29,6 +35,10 @@
   .card { background: white; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 12px; padding: 16px; }
   .card-label { font-size: 13px; font-weight: 600; color: var(--g700); margin-bottom: 8px; }
   .url-row { display: flex; gap: 8px; }
+  .btn-paste { padding:11px; border:1px solid var(--g300); border-radius:8px; background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--g600); transition:all 0.15s; }
+  .btn-paste:hover { border-color:var(--g500); color:var(--g900); }
+  .btn-paste:active { transform:scale(0.95); }
+  .btn-paste svg { width:18px; height:18px; }
   .url-input { flex:1; padding:11px 12px; border:1px solid var(--g300); border-radius:8px; font-size:14px; font-family:inherit; outline:none; min-width:0; }
   .url-input:focus { border-color: var(--red); }
   .url-input::placeholder { color: var(--g400); }
@@ -165,7 +175,10 @@
   <div class="card">
     <div class="card-label">SBB-Verbindungslink</div>
     <div class="url-row">
-      <input type="url" class="url-input" id="urlIn" placeholder="sbb.ch Link hier einfügen..." autocomplete="off">
+      <button class="btn-paste" onclick="autoPaste()" title="Aus Zwischenablage einfügen">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      </button>
+      <input type="url" class="url-input" id="urlIn" placeholder="sbb.ch Link einfügen..." autocomplete="off">
       <button class="btn btn-red" onclick="parseUrl()">Lesen</button>
     </div>
     <div class="preview" id="pv">
@@ -580,6 +593,53 @@ function xlsx(){
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Fahrten');
   XLSX.writeFile(wb,'sbb-fahrten.xlsx');
+}
+
+// ══════════════════════════════════════════
+// Auto-Paste & Share Target
+// ══════════════════════════════════════════
+async function autoPaste() {
+  try {
+    const text = await navigator.clipboard.readText();
+    if (text && text.includes('sbb.ch')) {
+      document.getElementById('urlIn').value = text.trim();
+      parseUrl();
+    } else if (text) {
+      document.getElementById('urlIn').value = text.trim();
+      msg('Eingefügt. Falls es ein SBB-Link ist, drücke "Lesen".', 'success');
+    } else {
+      msg('Zwischenablage ist leer.', 'error');
+    }
+  } catch (e) {
+    // Clipboard API blocked — fallback
+    document.getElementById('urlIn').focus();
+    msg('Bitte manuell einfügen (lange drücken → Einfügen).', 'error');
+  }
+}
+
+// Handle shared URLs (from SBB app via Share Target)
+function handleShareTarget() {
+  const params = new URLSearchParams(window.location.search);
+  const shared = params.get('url') || params.get('text') || params.get('title') || '';
+  // Extract URL from shared text
+  const urlMatch = shared.match(/https?:\/\/[^\s]+sbb\.ch[^\s]*/);
+  if (urlMatch) {
+    document.getElementById('urlIn').value = urlMatch[0];
+    // Clean URL params so refresh doesn't re-trigger
+    window.history.replaceState({}, '', window.location.pathname);
+    setTimeout(() => parseUrl(), 300);
+  } else if (shared.includes('sbb.ch')) {
+    document.getElementById('urlIn').value = shared;
+    window.history.replaceState({}, '', window.location.pathname);
+    setTimeout(() => parseUrl(), 300);
+  }
+}
+
+handleShareTarget();
+
+// Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
 // Init
