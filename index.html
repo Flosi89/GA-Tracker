@@ -133,6 +133,29 @@
   }
   .btn-del:hover { color: var(--red); background: var(--red-light); }
   .btn-del svg { width: 16px; height: 16px; }
+  .btn-edit {
+    background: none; border: none; color: var(--g400); cursor: pointer;
+    padding: 6px; border-radius: 6px; flex-shrink: 0; display: flex;
+  }
+  .btn-edit:hover { color: var(--blue); background: var(--blue-light); }
+  .btn-edit svg { width: 16px; height: 16px; }
+  .t-actions { display: flex; gap: 2px; flex-shrink: 0; }
+
+  /* Inline edit form */
+  .edit-form { padding: 12px 16px; border-top: 1px solid var(--g200); background: var(--g50); }
+  .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .edit-grid input, .edit-grid select {
+    padding: 8px 10px; border: 1px solid var(--g300); border-radius: 6px;
+    font-size: 13px; font-family: inherit; outline: none; width: 100%;
+  }
+  .edit-grid input:focus, .edit-grid select:focus { border-color: var(--red); }
+  .edit-actions { display: flex; gap: 8px; }
+  .edit-actions button {
+    padding: 8px 14px; border: none; border-radius: 6px;
+    font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .edit-save { background: var(--green); color: white; flex: 1; }
+  .edit-cancel { background: none; color: var(--g600); border: 1px solid var(--g300) !important; }
 
   /* Attachment bar */
   .attach-bar {
@@ -232,6 +255,7 @@
         <span class="cur">CHF</span>
         <input type="number" step="0.05" id="pvP" placeholder="0.00" inputmode="decimal">
         <select id="pvK"><option value="2. Klasse">2. Kl.</option><option value="1. Klasse">1. Kl.</option></select>
+        <select id="pvR"><option value="einfach">Einfach</option><option value="retour">Retour</option></select>
         <button class="btn btn-green" onclick="confirmTrip()">Hinzufügen</button>
       </div>
     </div>
@@ -246,6 +270,7 @@
       <input class="form-input" id="mN" placeholder="Nach">
       <input class="form-input" id="mP" placeholder="CHF" type="number" step="0.05" inputmode="decimal">
       <input class="form-input" id="mD" type="date">
+      <select class="form-input" id="mR"><option value="einfach">Einfach</option><option value="retour">Retour</option></select>
     </div>
     <div class="form-actions">
       <button class="btn btn-red" style="flex:1" onclick="addM()">Hinzufügen</button>
@@ -439,11 +464,22 @@ function confirmTrip() {
   if (!pend) return;
   const pr = parseFloat(document.getElementById('pvP').value);
   if (isNaN(pr) || pr <= 0) { msg('Bitte Preis eingeben.', 'error'); return; }
+  const klasse = document.getElementById('pvK').value;
+  const retour = document.getElementById('pvR').value === 'retour';
+
   trips.push({
     id: uid(), von: pend.von, nach: pend.nach, preis: pr,
-    datum: pend.datum, klasse: document.getElementById('pvK').value, files: []
+    datum: pend.datum, klasse, files: []
   });
-  save(); msg(pend.von + ' → ' + pend.nach + ' hinzugefügt!', 'success');
+  if (retour) {
+    trips.push({
+      id: uid(), von: pend.nach, nach: pend.von, preis: pr,
+      datum: pend.datum, klasse, files: []
+    });
+  }
+  save();
+  const label = pend.von + ' → ' + pend.nach + (retour ? ' (retour)' : '');
+  msg(label + ' hinzugefügt!', 'success');
   pend = null;
   document.getElementById('pv').classList.remove('show');
   document.getElementById('urlIn').value = '';
@@ -460,10 +496,17 @@ function togM() {
 function addM() {
   const v = document.getElementById('mV').value.trim(), n = document.getElementById('mN').value.trim(),
     pr = parseFloat(document.getElementById('mP').value), d = document.getElementById('mD').value;
+  const retour = document.getElementById('mR').value === 'retour';
   if (!v || !n || isNaN(pr)) { msg('Von, Nach und Preis ausfüllen.', 'error'); return; }
   trips.push({ id: uid(), von: v, nach: n, preis: pr, datum: d || null, klasse: null, files: [] });
-  save(); msg(v + ' → ' + n + ' hinzugefügt!', 'success');
+  if (retour) {
+    trips.push({ id: uid(), von: n, nach: v, preis: pr, datum: d || null, klasse: null, files: [] });
+  }
+  save();
+  const label = v + ' → ' + n + (retour ? ' (retour)' : '');
+  msg(label + ' hinzugefügt!', 'success');
   ['mV', 'mN', 'mP', 'mD'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('mR').value = 'einfach';
   togM();
 }
 
@@ -572,8 +615,8 @@ function render() {
       </span>`;
     }).join('');
 
-    return `<div class="trip-card">
-      <div class="trip-main">
+    return `<div class="trip-card" id="tc-${t.id}">
+      <div class="trip-main" id="tv-${t.id}">
         <div class="t-num">${i + 1}</div>
         <div class="t-info">
           <div class="t-route">
@@ -585,11 +628,32 @@ function render() {
           </div>
         </div>
         <div class="t-price">CHF ${t.preis.toFixed(2)}</div>
-        <button class="btn-del" onclick="del('${t.id}')">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
+        <div class="t-actions">
+          <button class="btn-edit" onclick="startEdit('${t.id}')" title="Bearbeiten">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+          </button>
+          <button class="btn-del" onclick="del('${t.id}')" title="Löschen">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
       </div>
-      <div class="attach-bar">
+      <div class="edit-form" id="ef-${t.id}" style="display:none;">
+        <div class="edit-grid">
+          <input id="ev-${t.id}" value="${esc(t.von)}" placeholder="Von">
+          <input id="en-${t.id}" value="${esc(t.nach)}" placeholder="Nach">
+          <input id="ep-${t.id}" value="${t.preis}" type="number" step="0.05" placeholder="CHF" inputmode="decimal">
+          <input id="ed-${t.id}" value="${t.datum || ''}" type="date">
+          <select id="ek-${t.id}">
+            <option value="2. Klasse"${t.klasse === '2. Klasse' ? ' selected' : ''}>2. Klasse</option>
+            <option value="1. Klasse"${t.klasse === '1. Klasse' ? ' selected' : ''}>1. Klasse</option>
+          </select>
+        </div>
+        <div class="edit-actions">
+          <button class="edit-save" onclick="saveEdit('${t.id}')">Speichern</button>
+          <button class="edit-cancel" onclick="cancelEdit('${t.id}')">Abbrechen</button>
+        </div>
+      </div>
+      <div class="attach-bar" id="ab-${t.id}">
         <label class="btn-attach">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
           Beleg
@@ -602,10 +666,54 @@ function render() {
 }
 
 // ══════════════════════════════════════════
+// Edit trips
+// ══════════════════════════════════════════
+function startEdit(id) {
+  // Hide view, show edit form
+  document.getElementById('tv-' + id).style.display = 'none';
+  document.getElementById('ab-' + id).style.display = 'none';
+  document.getElementById('ef-' + id).style.display = 'block';
+}
+
+function cancelEdit(id) {
+  // Restore view
+  document.getElementById('tv-' + id).style.display = 'flex';
+  document.getElementById('ab-' + id).style.display = 'flex';
+  document.getElementById('ef-' + id).style.display = 'none';
+  render(); // Reset input values
+}
+
+function saveEdit(id) {
+  const trip = trips.find(t => t.id === id);
+  if (!trip) return;
+  const von = document.getElementById('ev-' + id).value.trim();
+  const nach = document.getElementById('en-' + id).value.trim();
+  const preis = parseFloat(document.getElementById('ep-' + id).value);
+  const datum = document.getElementById('ed-' + id).value;
+  const klasse = document.getElementById('ek-' + id).value;
+
+  if (!von || !nach || isNaN(preis)) { msg('Von, Nach und Preis ausfüllen.', 'error'); return; }
+
+  trip.von = von;
+  trip.nach = nach;
+  trip.preis = preis;
+  trip.datum = datum || null;
+  trip.klasse = klasse;
+
+  save();
+  msg(von + ' → ' + nach + ' aktualisiert!', 'success');
+}
+
+// ══════════════════════════════════════════
 // Helpers
 // ══════════════════════════════════════════
 function save() { localStorage.setItem('sbb-t', JSON.stringify(trips)); render(); }
-async function del(id) { await deleteFilesForTrip(id); trips = trips.filter(t => t.id !== id); save(); }
+async function del(id) {
+  const t = trips.find(x => x.id === id);
+  const label = t ? (t.von + ' → ' + t.nach) : 'Fahrt';
+  if (!confirm(label + ' wirklich löschen?')) return;
+  await deleteFilesForTrip(id); trips = trips.filter(x => x.id !== id); save();
+}
 async function clr() {
   if (!confirm('Alle Fahrten und Belege löschen?')) return;
   for (const t of trips) { await deleteFilesForTrip(t.id); }
