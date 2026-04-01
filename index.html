@@ -173,12 +173,14 @@
   .att-chip .att-x:hover { color: var(--red); }
 
   .empty { text-align: center; color: var(--g400); font-size: 13px; padding: 36px 0; }
-  .export { display: none; margin-top: 12px; gap: 8px; }
+  .export { display: none; margin-top: 12px; gap: 8px; flex-wrap: wrap; }
   .export.show { display: flex; }
   .export button {
-    flex: 1; padding: 10px; border: 1px solid var(--g300); background: white;
+    flex: 1; min-width: calc(50% - 4px); padding: 10px; border: 1px solid var(--g300); background: white;
     border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; color: var(--g700);
   }
+  .export button:disabled { opacity: 0.5; cursor: wait; }
+  .export .btn-zip { min-width: 100%; background: var(--g50); font-weight: 600; }
 
   /* Lightbox */
   .lightbox {
@@ -254,7 +256,11 @@
   <div class="summary" id="sum"><div><div class="s-label">Total</div><div class="s-total" id="tot"></div></div><button class="btn-txt" onclick="clr()">Alle löschen</button></div>
   <div class="trip-list" id="tl"></div>
   <div class="empty" id="emp">Noch keine Fahrten erfasst.</div>
-  <div class="export" id="exp"><button onclick="csv()">📄 CSV</button><button onclick="jsn()">📋 JSON</button></div>
+  <div class="export" id="exp">
+    <button onclick="csv()">📄 CSV</button>
+    <button onclick="jsn()">📋 JSON</button>
+    <button class="btn-zip" id="btnZip" onclick="exportZip()">📦 Alle Belege als ZIP exportieren</button>
+  </div>
 </div>
 
 <!-- Lightbox for viewing attachments -->
@@ -636,6 +642,80 @@ function dl(n, t, c) {
 
 // Init
 render();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+async function exportZip() {
+  // Collect all files across all trips
+  const allFiles = [];
+  for (const t of trips) {
+    if (!t.files || !t.files.length) continue;
+    for (const f of t.files) {
+      allFiles.push({
+        tripLabel: t.von + ' - ' + t.nach + (t.datum ? ' (' + t.datum + ')' : ''),
+        fileId: f.fileId,
+        name: f.name,
+      });
+    }
+  }
+
+  if (!allFiles.length) {
+    msg('Keine Belege zum Exportieren vorhanden.', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btnZip');
+  btn.disabled = true;
+  btn.textContent = '⏳ ZIP wird erstellt...';
+
+  try {
+    const zip = new JSZip();
+
+    // Group by trip, create subfolders
+    const folderMap = {};
+    let folderIdx = 0;
+
+    for (const af of allFiles) {
+      if (!folderMap[af.tripLabel]) {
+        folderIdx++;
+        const folderName = String(folderIdx).padStart(2, '0') + ' ' +
+          af.tripLabel.replace(/[\/\\:*?"<>|]/g, '_');
+        folderMap[af.tripLabel] = zip.folder(folderName);
+      }
+
+      const fileData = await getFile(af.fileId);
+      if (fileData) {
+        folderMap[af.tripLabel].file(af.name, fileData.data);
+      }
+    }
+
+    // Add CSV summary
+    const csvRows = ['Von,Nach,Preis,Datum,Klasse,Belege'];
+    trips.forEach(t => {
+      const fNames = (t.files || []).map(f => f.name).join('; ');
+      csvRows.push('"' + t.von + '","' + t.nach + '",' + t.preis.toFixed(2) + ',' + (t.datum||'') + ',' + (t.klasse||'') + ',"' + fNames + '"');
+    });
+    const tot = trips.reduce((s,t) => s + t.preis, 0);
+    csvRows.push('"","TOTAL",' + tot.toFixed(2) + ',,,');
+    zip.file('uebersicht.csv', csvRows.join('\n'));
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'sbb-belege-' + new Date().toISOString().slice(0, 10) + '.zip';
+    document.body.append(a);
+    a.click();
+    a.remove();
+
+    msg(allFiles.length + ' Belege als ZIP exportiert!', 'success');
+  } catch (e) {
+    console.error(e);
+    msg('Fehler beim ZIP-Export: ' + e.message, 'error');
+  }
+
+  btn.disabled = false;
+  btn.textContent = '📦 Alle Belege als ZIP exportieren';
+}
 </script>
 </body>
 </html>
