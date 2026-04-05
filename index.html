@@ -234,7 +234,10 @@
         <select id="pvK"><option value="2. Klasse">2. Kl.</option><option value="1. Klasse">1. Kl.</option></select>
         <select id="pvR2"><option value="einfach">Einfach</option><option value="retour">Retour</option></select>
         <input type="text" id="pvB" placeholder="Betreff (optional)" style="flex:1 1 100%;padding:9px 12px;border:1px solid var(--g300);border-radius:8px;font-size:13px;font-family:inherit;outline:none;margin-top:4px;">
-        <button class="btn btn-green" onclick="confirmTrip()">Hinzufügen</button>
+        <div style="display:flex;gap:8px;width:100%;margin-top:6px;">
+          <a class="btn" id="pvSbbLink" href="#" target="_blank" rel="noopener" style="flex:1;text-align:center;background:var(--red);color:white;text-decoration:none;font-size:13px;padding:10px;">🔗 SBB öffnen & Screenshot</a>
+          <button class="btn btn-green" style="flex:1;font-size:13px;" onclick="confirmTrip()">✓ Hinzufügen</button>
+        </div>
       </div>
     </div>
   </div>
@@ -464,6 +467,7 @@ async function parseUrl() {
     const pts = []; if (d.datum) pts.push(fmtD(d.datum)); if (d.zeit) pts.push(d.zeit+' Uhr');
     document.getElementById('pvM').textContent = pts.join(' · ');
     document.getElementById('pvP').value = '';
+    document.getElementById('pvSbbLink').href = raw;
     document.getElementById('pv').classList.add('show');
     setTimeout(() => document.getElementById('pvP').focus(), 100);
   } catch (e) { msg(e.message, 'error'); }
@@ -576,18 +580,37 @@ async function confirmTrip() {
   const kl = document.getElementById('pvK').value, ret = document.getElementById('pvR2').value==='retour', bet = document.getElementById('pvB').value.trim();
   const sbbUrl = document.getElementById('urlIn').value.trim();
 
+  const newIds = [];
   const trip1 = { id:uid(), kategorie:'ÖV-Reise', von:pend.von, nach:pend.nach, beschreibung:'', preis:pr, datum:pend.datum, klasse:kl, betreff:bet, files:[], zeit:pend.zeit||null };
-  trips.push(trip1);
-  await autoAttachReceipt(trip1, sbbUrl);
+  trips.push(trip1); newIds.push(trip1.id);
 
   if (ret) {
     const trip2 = { id:uid(), kategorie:'ÖV-Reise', von:pend.nach, nach:pend.von, beschreibung:'', preis:pr, datum:pend.datum, klasse:kl, betreff:bet, files:[], zeit:null };
-    trips.push(trip2);
-    await autoAttachReceipt(trip2, sbbUrl);
+    trips.push(trip2); newIds.push(trip2.id);
   }
 
-  save(); msg(pend.von+' → '+pend.nach+(ret?' (retour)':'')+' hinzugefügt mit Beleg!','success');
+  save();
+  msg(pend.von+' → '+pend.nach+(ret?' (retour)':'')+' hinzugefügt! Jetzt Beleg anhängen.','success');
   pend=null; document.getElementById('pv').classList.remove('show'); document.getElementById('urlIn').value=''; document.getElementById('pvB').value='';
+
+  // Scroll to new trip and prompt for screenshot
+  setTimeout(() => {
+    const el = document.getElementById('tc-' + newIds[0]);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Highlight briefly
+      el.style.outline = '3px solid var(--brand)';
+      el.style.outlineOffset = '2px';
+      setTimeout(() => { el.style.outline = ''; el.style.outlineOffset = ''; }, 3000);
+      // Try to open file picker for the first trip
+      const fileInput = el.querySelector('.btn-attach input[type="file"]');
+      if (fileInput) {
+        setTimeout(() => {
+          try { fileInput.click(); } catch(e) {}
+        }, 500);
+      }
+    }
+  }, 200);
 }
 
 document.getElementById('pvP').addEventListener('keydown',e=>{if(e.key==='Enter')confirmTrip()});
