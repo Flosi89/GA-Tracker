@@ -121,6 +121,13 @@
   .btn-odoo { background:none; border:none; color:var(--g400); cursor:pointer; padding:5px; border-radius:6px; display:flex; }
   .btn-odoo:hover { color:#7c3aed; background:#f3e8ff; }
   .btn-odoo svg { width:15px; height:15px; }
+  .btn-archive { background:none; border:none; color:var(--g400); cursor:pointer; padding:5px; border-radius:6px; display:flex; }
+  .btn-archive:hover { color:var(--green); background:var(--green-light); }
+  .btn-archive.is-archived { color:var(--green); }
+  .btn-archive svg { width:15px; height:15px; }
+  .trip-card.archived { opacity:0.55; }
+  .trip-card.archived .trip-main { background:var(--g50); }
+  .t-archived-badge { display:inline-block; font-size:10px; background:var(--green-light); color:var(--green); padding:2px 6px; border-radius:4px; font-weight:600; margin-left:6px; vertical-align:middle; }
   .btn-odoo-all { width:100%; padding:10px; border:1px solid #7c3aed; background:#f3e8ff; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; color:#7c3aed; margin-top:4px; }
   .btn-odoo-all:hover { background:#ede4ff; }
   .btn-odoo-all:disabled { opacity:0.5; cursor:wait; }
@@ -253,6 +260,12 @@
         <option value="price-asc">Preis ↑</option>
         <option value="route">Route A-Z</option>
       </select>
+      <span class="filter-label" style="margin-left:4px;">Status</span>
+      <select id="fArchive">
+        <option value="all">Alle</option>
+        <option value="open" selected>Offen</option>
+        <option value="archived">Archiviert</option>
+      </select>
       <button class="filter-reset" onclick="resetFilters()">Zurücksetzen</button>
     </div>
   </div>
@@ -319,7 +332,7 @@ const ST={'8505000':'Luzern','8503000':'Zürich HB','8507000':'Bern','8500010':'
 // State
 // ══════════════════════════════════════════
 let trips = JSON.parse(localStorage.getItem('sbb-t') || '[]');
-trips.forEach(t => { if (!t.files) t.files = []; if (!t.betreff) t.betreff = ''; if (!t.kategorie) t.kategorie = 'ÖV-Reise'; if (!t.beschreibung) t.beschreibung = ''; });
+trips.forEach(t => { if (!t.files) t.files = []; if (!t.betreff) t.betreff = ''; if (!t.kategorie) t.kategorie = 'ÖV-Reise'; if (!t.beschreibung) t.beschreibung = ''; if (t.archived===undefined) t.archived = false; });
 let pend = null;
 let statsVisible = false;
 
@@ -455,9 +468,10 @@ function addM(){
 function getFiltered() {
   let list = [...trips];
   const month = document.getElementById('fMonth').value;
-  if (month) {
-    list = list.filter(t => t.datum && t.datum.startsWith(month));
-  }
+  if (month) list = list.filter(t => t.datum && t.datum.startsWith(month));
+  const archive = document.getElementById('fArchive').value;
+  if (archive === 'open') list = list.filter(t => !t.archived);
+  else if (archive === 'archived') list = list.filter(t => t.archived);
   const sort = document.getElementById('fSort').value;
   if (sort !== 'manual') {
     list.sort((a, b) => {
@@ -466,7 +480,7 @@ function getFiltered() {
         case 'date-asc': return (a.datum||'').localeCompare(b.datum||'');
         case 'price-desc': return b.preis - a.preis;
         case 'price-asc': return a.preis - b.preis;
-        case 'route': return (a.von+a.nach).localeCompare(b.von+b.nach);
+        case 'route': return tripLabel(a).localeCompare(tripLabel(b));
         default: return 0;
       }
     });
@@ -477,11 +491,13 @@ function getFiltered() {
 function resetFilters() {
   document.getElementById('fMonth').value = '';
   document.getElementById('fSort').value = 'manual';
+  document.getElementById('fArchive').value = 'open';
   render();
 }
 
 document.getElementById('fMonth').addEventListener('change', render);
 document.getElementById('fSort').addEventListener('change', render);
+document.getElementById('fArchive').addEventListener('change', render);
 
 // ══════════════════════════════════════════
 // Statistics
@@ -595,9 +611,13 @@ function render() {
   e.style.display='none';x.classList.add('show');document.getElementById('odooSetup').style.display='';
 
   const tot=filtered.reduce((a,t)=>a+t.preis,0),n=filtered.length;
+  const archivedCount=trips.filter(t=>t.archived).length, openCount=trips.length-archivedCount;
   s.classList.add('show');
-  document.getElementById('tot').innerHTML='CHF '+tot.toFixed(2)+'<span class="s-count">'+n+(n===1?' Fahrt':' Fahrten')+'</span>';
-  document.getElementById('filtInfo').textContent = isFiltered ? 'Gefiltert ('+trips.length+' total: CHF '+trips.reduce((a,t)=>a+t.preis,0).toFixed(2)+')' : '';
+  document.getElementById('tot').innerHTML='CHF '+tot.toFixed(2)+'<span class="s-count">'+n+(n===1?' Spese':' Spesen')+'</span>';
+  const infoparts=[];
+  if(isFiltered) infoparts.push('Gefiltert ('+trips.length+' total: CHF '+trips.reduce((a,t)=>a+t.preis,0).toFixed(2)+')');
+  if(archivedCount>0) infoparts.push(openCount+' offen, '+archivedCount+' exportiert');
+  document.getElementById('filtInfo').textContent=infoparts.join(' · ');
 
   l.innerHTML = filtered.map((t, i) => {
     const filesHtml = (t.files||[]).map(f => {
@@ -605,14 +625,15 @@ function render() {
       return `<span class="att-chip" onclick="viewAttachment('${f.fileId}','${esc(f.name)}')" title="${esc(f.name)}"><span class="att-icon">${icon}</span><span class="att-name">${esc(f.name)}</span><span class="att-x" onclick="event.stopPropagation();removeAttachment('${t.id}','${f.fileId}')" title="Entfernen">×</span></span>`;
     }).join('');
     const ti = trips.indexOf(t);
-    return `<div class="trip-card" id="tc-${t.id}">
+    return `<div class="trip-card${t.archived?' archived':''}" id="tc-${t.id}">
       <div class="trip-main" id="tv-${t.id}">
         <div class="t-top">
           <div class="t-left">
-            <div class="t-header"><div class="t-num">${i+1}</div><div class="t-route">${t.von&&t.nach ? esc(t.von)+'<span class="t-arrow">→</span>'+esc(t.nach) : '<span style="margin-right:4px">'+tripIcon(t)+'</span>'+esc(t.beschreibung||t.kategorie)}</div></div>
+            <div class="t-header"><div class="t-num">${i+1}</div><div class="t-route">${t.von&&t.nach ? esc(t.von)+'<span class="t-arrow">→</span>'+esc(t.nach) : '<span style="margin-right:4px">'+tripIcon(t)+'</span>'+esc(t.beschreibung||t.kategorie)}${t.archived?'<span class="t-archived-badge">✓ Exportiert</span>':''}</div></div>
             ${t.betreff?'<div class="t-betreff">'+esc(t.betreff)+'</div>':''}
           </div>
           <div class="t-actions">
+            <button class="btn-archive${t.archived?' is-archived':''}" onclick="toggleArchive('${t.id}')" title="${t.archived?'Als offen markieren':'Als exportiert markieren'}"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${t.archived?'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z':'M5 13l4 4L19 7'}"/></svg></button>
             <button class="btn-move" onclick="moveTrip('${t.id}',-1)" title="↑"${ti===0?' disabled':''}><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg></button>
             <button class="btn-move" onclick="moveTrip('${t.id}',1)" title="↓"${ti===trips.length-1?' disabled':''}><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></button>
             <button class="btn-odoo" onclick="sendToOdoo('${t.id}')" title="An Odoo senden"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></button>
@@ -652,6 +673,7 @@ function render() {
 // Reorder / Edit / Delete
 // ══════════════════════════════════════════
 function moveTrip(id,dir){const i=trips.findIndex(t=>t.id===id);if(i<0)return;const n=i+dir;if(n<0||n>=trips.length)return;[trips[i],trips[n]]=[trips[n],trips[i]];save()}
+function toggleArchive(id){const t=trips.find(x=>x.id===id);if(!t)return;t.archived=!t.archived;save();msg(tripLabel(t)+(t.archived?' als exportiert markiert.':' als offen markiert.'),'success')}
 function startEdit(id){document.getElementById('tv-'+id).style.display='none';document.getElementById('ab-'+id).style.display='none';document.getElementById('ef-'+id).style.display='block'}
 function cancelEdit(id){document.getElementById('tv-'+id).style.display='';document.getElementById('ab-'+id).style.display='';document.getElementById('ef-'+id).style.display='none';render()}
 function saveEdit(id){
@@ -769,6 +791,7 @@ async function sendToOdoo(tripId) {
         if (sender) msg('Sende von: ' + sender, 'success');
         await navigator.share(shareData);
         msg(tripLabel(t) + ' geteilt!', 'success');
+        t.archived = true; save();
         return;
       }
     } catch (e) {
@@ -781,6 +804,7 @@ async function sendToOdoo(tripId) {
   const fileHint = shareFiles.length > 0 ? '\n⚠️ Bitte Beleg manuell anhängen.' : '';
   const mailto = `mailto:${encodeURIComponent(cfg.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body + senderHint + fileHint)}`;
   window.location.href = mailto;
+  t.archived = true; save();
   msg('Email geöffnet.' + (sender ? ' Absender: ' + sender : ''), 'success');
 }
 
@@ -818,6 +842,7 @@ async function sendAllToOdoo() {
         if (sender) msg('Sende von: ' + sender, 'success');
         await navigator.share(shareData);
         msg('Sammelabrechnung geteilt!', 'success');
+        filtered.forEach(t => t.archived = true); save();
         btn.disabled = false;
         return;
       }
@@ -830,6 +855,7 @@ async function sendAllToOdoo() {
   const hasFiles = filtered.some(t => t.files && t.files.length > 0);
   const mailto = `mailto:${encodeURIComponent(cfg.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body + senderHint + (hasFiles ? '\n⚠️ Bitte Belege manuell anhängen (ZIP Export nutzen).' : ''))}`;
   window.location.href = mailto;
+  filtered.forEach(t => t.archived = true); save();
   msg('Email geöffnet.' + (sender ? ' Absender: ' + sender : ''), 'success');
   btn.disabled = false;
 }
