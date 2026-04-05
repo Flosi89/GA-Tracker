@@ -109,6 +109,22 @@
   .stat-row .label { color:var(--g700); }
   .stat-row .value { font-weight:600; }
 
+  /* Odoo settings */
+  .odoo-setup { background:white; border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin-bottom:12px; }
+  .odoo-setup summary { font-size:13px; font-weight:600; color:var(--g700); cursor:pointer; list-style:none; display:flex; align-items:center; gap:6px; }
+  .odoo-setup summary::before { content:'⚙️'; }
+  .odoo-setup[open] summary { margin-bottom:12px; }
+  .odoo-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .odoo-grid input { padding:9px 12px; border:1px solid var(--g300); border-radius:8px; font-size:13px; font-family:inherit; outline:none; width:100%; }
+  .odoo-grid input:focus { border-color:var(--red); }
+  .odoo-hint { font-size:11px; color:var(--g500); margin-top:8px; line-height:1.5; grid-column:1/-1; }
+  .btn-odoo { background:none; border:none; color:var(--g400); cursor:pointer; padding:5px; border-radius:6px; display:flex; }
+  .btn-odoo:hover { color:#7c3aed; background:#f3e8ff; }
+  .btn-odoo svg { width:15px; height:15px; }
+  .btn-odoo-all { width:100%; padding:10px; border:1px solid #7c3aed; background:#f3e8ff; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; color:#7c3aed; margin-top:4px; }
+  .btn-odoo-all:hover { background:#ede4ff; }
+  .btn-odoo-all:disabled { opacity:0.5; cursor:wait; }
+
   /* Trip cards */
   .trip-list { display:flex; flex-direction:column; gap:8px; }
   .trip-card { background:white; border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
@@ -196,11 +212,19 @@
     </div>
   </div>
   <div id="msgs"></div>
-  <button class="btn-add" id="btnM" onclick="togM()">+ Manuell erfassen</button>
+  <button class="btn-add" id="btnM" onclick="togM()">+ Spese erfassen</button>
   <div class="card manual-form" id="mForm">
     <div class="form-grid">
+      <select class="form-input" id="mKat" onchange="toggleManualFields()" style="grid-column:1/-1">
+        <option value="ÖV-Reise">🚂 ÖV-Reise</option>
+        <option value="Essen">🍽️ Essen</option>
+        <option value="Unterkunft">🏨 Unterkunft</option>
+        <option value="Material">📦 Material</option>
+        <option value="Sonstiges">📝 Sonstiges</option>
+      </select>
       <input class="form-input" id="mV" placeholder="Von">
       <input class="form-input" id="mN" placeholder="Nach">
+      <input class="form-input" id="mBeschr" placeholder="Beschreibung" style="grid-column:1/-1;display:none">
       <input class="form-input" id="mP" placeholder="CHF" type="number" step="0.05" inputmode="decimal">
       <input class="form-input" id="mD" type="date">
       <select class="form-input" id="mR"><option value="einfach">Einfach</option><option value="retour">Retour</option></select>
@@ -244,11 +268,22 @@
   <div class="trip-list" id="tl"></div>
   <div class="empty" id="emp">Noch keine Fahrten erfasst.</div>
 
+  <!-- Odoo -->
+  <details class="odoo-setup" id="odooSetup" style="display:none;">
+    <summary>Odoo Spesen-Einstellungen</summary>
+    <div class="odoo-grid">
+      <input id="odooEmail" placeholder="spesen@firma.ch" type="email">
+      <input id="odooRef" placeholder="Referenz (z.B. REISE)" value="REISE">
+      <div class="odoo-hint">Email-Alias aus Odoo Spesen → Konfiguration → Einstellungen. Referenz = interne Referenz der Spesenkategorie.</div>
+    </div>
+  </details>
+
   <!-- Export -->
   <div class="export" id="exp">
     <button onclick="xlsx()">📊 Excel</button>
     <button onclick="csv()">📄 CSV</button>
     <button onclick="jsn()">📋 JSON</button>
+    <button class="btn-odoo-all" id="btnOdoo" onclick="sendAllToOdoo()">✉️ Alle Fahrten an Odoo senden</button>
     <button class="btn-zip" id="btnZip" onclick="exportZip()">📦 Alle Belege als ZIP exportieren</button>
   </div>
 </div>
@@ -279,14 +314,50 @@ const ST={'8505000':'Luzern','8503000':'Zürich HB','8507000':'Bern','8500010':'
 // State
 // ══════════════════════════════════════════
 let trips = JSON.parse(localStorage.getItem('sbb-t') || '[]');
-trips.forEach(t => { if (!t.files) t.files = []; if (!t.betreff) t.betreff = ''; });
+trips.forEach(t => { if (!t.files) t.files = []; if (!t.betreff) t.betreff = ''; if (!t.kategorie) t.kategorie = 'ÖV-Reise'; if (!t.beschreibung) t.beschreibung = ''; });
 let pend = null;
 let statsVisible = false;
 
 // ══════════════════════════════════════════
 // URL Parsing
 // ══════════════════════════════════════════
+async function resolveShortLink(url) {
+  // Try to resolve a.sbbmobile.ch short links
+  try {
+    const res = await fetch(url, { redirect: 'follow', mode: 'cors' });
+    // If we got redirected to sbb.ch, use that URL
+    if (res.url && res.url.includes('sbb.ch')) return res.url;
+    // Try to find a redirect in the HTML
+    const html = await res.text();
+    const match = html.match(/https?:\/\/[^\s"']+sbb\.ch[^\s"']*/);
+    if (match) return match[0];
+  } catch(e) {
+    // CORS blocked — try no-cors to see if redirect happens
+    try {
+      const res = await fetch(url, { redirect: 'follow', mode: 'no-cors' });
+      if (res.url && res.url.includes('sbb.ch')) return res.url;
+    } catch(e2) {}
+  }
+  return null;
+}
+
+function extractSbbUrl(text) {
+  // Find any SBB URL in text (full or short)
+  const full = text.match(/https?:\/\/[^\s]*sbb\.ch[^\s]*/);
+  if (full) return full[0];
+  const short = text.match(/https?:\/\/[^\s]*sbbmobile\.ch[^\s]*/);
+  if (short) return short[0];
+  return text.trim();
+}
+
 async function parseSbb(url) {
+  // Handle sbbmobile.ch short links
+  if (url.includes('sbbmobile.ch')) {
+    const resolved = await resolveShortLink(url);
+    if (resolved) return parseSbb(resolved);
+    throw new Error('Kurzlink konnte nicht aufgelöst werden. Bitte öffne den Link im Browser und kopiere die vollständige sbb.ch URL.');
+  }
+
   const u = new URL(url); if (!u.hostname.includes('sbb.ch')) throw new Error('Kein SBB-Link');
   const p = u.searchParams, stops = p.get('stops');
   if (stops) {
@@ -311,7 +382,12 @@ async function parseSbb(url) {
 }
 
 async function parseUrl() {
-  const raw = document.getElementById('urlIn').value.trim(); if (!raw) return;
+  let raw = document.getElementById('urlIn').value.trim(); if (!raw) return;
+  raw = extractSbbUrl(raw);
+  document.getElementById('urlIn').value = raw;
+  const btn = document.querySelector('.url-row .btn-red');
+  const orig = btn.textContent;
+  if (raw.includes('sbbmobile.ch')) { btn.textContent = '...'; btn.disabled = true; }
   try {
     const d = await parseSbb(raw); pend = d;
     document.getElementById('pvR').textContent = d.von + ' → ' + d.nach;
@@ -323,6 +399,7 @@ async function parseUrl() {
     document.getElementById('pv').classList.add('show');
     setTimeout(() => document.getElementById('pvP').focus(), 100);
   } catch (e) { msg(e.message, 'error'); }
+  btn.textContent = orig; btn.disabled = false;
 }
 
 function confirmTrip() {
@@ -330,8 +407,8 @@ function confirmTrip() {
   const pr = parseFloat(document.getElementById('pvP').value);
   if (isNaN(pr)||pr<=0) { msg('Bitte Preis eingeben.','error'); return; }
   const kl = document.getElementById('pvK').value, ret = document.getElementById('pvR2').value==='retour', bet = document.getElementById('pvB').value.trim();
-  trips.push({ id:uid(), von:pend.von, nach:pend.nach, preis:pr, datum:pend.datum, klasse:kl, betreff:bet, files:[] });
-  if (ret) trips.push({ id:uid(), von:pend.nach, nach:pend.von, preis:pr, datum:pend.datum, klasse:kl, betreff:bet, files:[] });
+  trips.push({ id:uid(), kategorie:'ÖV-Reise', von:pend.von, nach:pend.nach, beschreibung:'', preis:pr, datum:pend.datum, klasse:kl, betreff:bet, files:[] });
+  if (ret) trips.push({ id:uid(), kategorie:'ÖV-Reise', von:pend.nach, nach:pend.von, beschreibung:'', preis:pr, datum:pend.datum, klasse:kl, betreff:bet, files:[] });
   save(); msg(pend.von+' → '+pend.nach+(ret?' (retour)':'')+' hinzugefügt!','success');
   pend=null; document.getElementById('pv').classList.remove('show'); document.getElementById('urlIn').value=''; document.getElementById('pvB').value='';
 }
@@ -339,15 +416,32 @@ function confirmTrip() {
 document.getElementById('pvP').addEventListener('keydown',e=>{if(e.key==='Enter')confirmTrip()});
 document.getElementById('urlIn').addEventListener('keydown',e=>{if(e.key==='Enter')parseUrl()});
 
-function togM(){const f=document.getElementById('mForm'),b=document.getElementById('btnM'),s=!f.classList.contains('show');f.classList.toggle('show',s);b.style.display=s?'none':'block'}
+function togM(){const f=document.getElementById('mForm'),b=document.getElementById('btnM'),s=!f.classList.contains('show');f.classList.toggle('show',s);b.style.display=s?'none':'block';if(s)toggleManualFields()}
+function toggleManualFields(){
+  const kat=document.getElementById('mKat').value;
+  const isTrip=kat==='ÖV-Reise';
+  document.getElementById('mV').style.display=isTrip?'':'none';
+  document.getElementById('mN').style.display=isTrip?'':'none';
+  document.getElementById('mR').style.display=isTrip?'':'none';
+  document.getElementById('mBeschr').style.display=isTrip?'none':'';
+}
 function addM(){
-  const v=document.getElementById('mV').value.trim(),n=document.getElementById('mN').value.trim(),pr=parseFloat(document.getElementById('mP').value),d=document.getElementById('mD').value;
-  const ret=document.getElementById('mR').value==='retour',bet=document.getElementById('mB').value.trim();
-  if(!v||!n||isNaN(pr)){msg('Von, Nach und Preis ausfüllen.','error');return}
-  trips.push({id:uid(),von:v,nach:n,preis:pr,datum:d||null,klasse:null,betreff:bet,files:[]});
-  if(ret) trips.push({id:uid(),von:n,nach:v,preis:pr,datum:d||null,klasse:null,betreff:bet,files:[]});
-  save(); msg(v+' → '+n+(ret?' (retour)':'')+' hinzugefügt!','success');
-  ['mV','mN','mP','mD','mB'].forEach(id=>document.getElementById(id).value=''); document.getElementById('mR').value='einfach'; togM();
+  const kat=document.getElementById('mKat').value;
+  const isTrip=kat==='ÖV-Reise';
+  const v=document.getElementById('mV').value.trim(),n=document.getElementById('mN').value.trim();
+  const beschr=document.getElementById('mBeschr').value.trim();
+  const pr=parseFloat(document.getElementById('mP').value),d=document.getElementById('mD').value;
+  const ret=isTrip&&document.getElementById('mR').value==='retour',bet=document.getElementById('mB').value.trim();
+  if(isTrip&&(!v||!n||isNaN(pr))){msg('Von, Nach und Preis ausfüllen.','error');return}
+  if(!isTrip&&(!beschr||isNaN(pr))){msg('Beschreibung und Preis ausfüllen.','error');return}
+  const base={id:uid(),kategorie:kat,von:isTrip?v:'',nach:isTrip?n:'',beschreibung:isTrip?'':beschr,preis:pr,datum:d||null,klasse:isTrip?null:null,betreff:bet,files:[]};
+  trips.push(base);
+  if(ret) trips.push({...base,id:uid(),von:n,nach:v});
+  save();
+  const label=isTrip?(v+' → '+n+(ret?' (retour)':'')):(beschr);
+  msg(label+' hinzugefügt!','success');
+  ['mV','mN','mP','mD','mB','mBeschr'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('mR').value='einfach'; togM();
 }
 
 // ══════════════════════════════════════════
@@ -479,6 +573,11 @@ function closeLb(ev){if(ev&&ev.target!==document.getElementById('lb')&&!ev.targe
 // ══════════════════════════════════════════
 // Render
 // ══════════════════════════════════════════
+const KAT_ICONS={'ÖV-Reise':'🚂','Essen':'🍽️','Unterkunft':'🏨','Material':'📦','Sonstiges':'📝'};
+const KAT_LIST=['ÖV-Reise','Essen','Unterkunft','Material','Sonstiges'];
+function tripLabel(t){return t.von&&t.nach?t.von+' → '+t.nach:(t.beschreibung||t.kategorie||'Spese')}
+function tripIcon(t){return KAT_ICONS[t.kategorie]||'📝'}
+
 function render() {
   const filtered = getFiltered();
   const l=document.getElementById('tl'),s=document.getElementById('sum'),e=document.getElementById('emp'),x=document.getElementById('exp'),fb=document.getElementById('filterBar'),sb=document.getElementById('statsBtn');
@@ -487,8 +586,8 @@ function render() {
 
   fb.classList.toggle('show', hasTrips);
   sb.classList.toggle('show', hasTrips);
-  if (!hasTrips) { l.innerHTML='';s.classList.remove('show');e.style.display='block';x.classList.remove('show');document.getElementById('statsPanel').classList.remove('show');return }
-  e.style.display='none';x.classList.add('show');
+  if (!hasTrips) { l.innerHTML='';s.classList.remove('show');e.style.display='block';x.classList.remove('show');document.getElementById('statsPanel').classList.remove('show');document.getElementById('odooSetup').style.display='none';return }
+  e.style.display='none';x.classList.add('show');document.getElementById('odooSetup').style.display='';
 
   const tot=filtered.reduce((a,t)=>a+t.preis,0),n=filtered.length;
   s.classList.add('show');
@@ -505,28 +604,31 @@ function render() {
       <div class="trip-main" id="tv-${t.id}">
         <div class="t-top">
           <div class="t-left">
-            <div class="t-header"><div class="t-num">${i+1}</div><div class="t-route">${esc(t.von)}<span class="t-arrow">→</span>${esc(t.nach)}</div></div>
+            <div class="t-header"><div class="t-num">${i+1}</div><div class="t-route">${t.von&&t.nach ? esc(t.von)+'<span class="t-arrow">→</span>'+esc(t.nach) : '<span style="margin-right:4px">'+tripIcon(t)+'</span>'+esc(t.beschreibung||t.kategorie)}</div></div>
             ${t.betreff?'<div class="t-betreff">'+esc(t.betreff)+'</div>':''}
           </div>
           <div class="t-actions">
             <button class="btn-move" onclick="moveTrip('${t.id}',-1)" title="↑"${ti===0?' disabled':''}><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg></button>
             <button class="btn-move" onclick="moveTrip('${t.id}',1)" title="↓"${ti===trips.length-1?' disabled':''}><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></button>
+            <button class="btn-odoo" onclick="sendToOdoo('${t.id}')" title="An Odoo senden"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></button>
             <button class="btn-edit" onclick="startEdit('${t.id}')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
             <button class="btn-del" onclick="del('${t.id}')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
           </div>
         </div>
         <div class="t-bottom">
-          <div class="t-meta">${t.datum?'<span>'+fmtD(t.datum)+'</span>':''}${t.klasse?'<span>'+esc(t.klasse)+'</span>':''}</div>
+          <div class="t-meta">${t.kategorie&&t.kategorie!=='ÖV-Reise'?'<span>'+esc(t.kategorie)+'</span>':''}${t.datum?'<span>'+fmtD(t.datum)+'</span>':''}${t.klasse?'<span>'+esc(t.klasse)+'</span>':''}</div>
           <div class="t-price">CHF ${t.preis.toFixed(2)}</div>
         </div>
       </div>
       <div class="edit-form" id="ef-${t.id}" style="display:none">
         <div class="edit-grid">
-          <input id="ev-${t.id}" value="${esc(t.von)}" placeholder="Von">
-          <input id="en-${t.id}" value="${esc(t.nach)}" placeholder="Nach">
+          <select id="ekat-${t.id}" style="grid-column:1/-1">${KAT_LIST.map(k=>'<option value="'+k+'"'+(t.kategorie===k?' selected':'')+'>'+k+'</option>').join('')}</select>
+          <input id="ev-${t.id}" value="${esc(t.von)}" placeholder="Von"${t.von?'':' style="display:none"'}>
+          <input id="en-${t.id}" value="${esc(t.nach)}" placeholder="Nach"${t.nach?'':' style="display:none"'}>
+          <input id="ebeschr-${t.id}" value="${esc(t.beschreibung||'')}" placeholder="Beschreibung" style="${t.von?'display:none;':''}grid-column:1/-1">
           <input id="ep-${t.id}" value="${t.preis}" type="number" step="0.05" inputmode="decimal">
           <input id="ed-${t.id}" value="${t.datum||''}" type="date">
-          <select id="ek-${t.id}"><option value="2. Klasse"${t.klasse==='2. Klasse'?' selected':''}>2. Klasse</option><option value="1. Klasse"${t.klasse==='1. Klasse'?' selected':''}>1. Klasse</option></select>
+          <select id="ek-${t.id}"><option value=""${!t.klasse?' selected':''}>-</option><option value="2. Klasse"${t.klasse==='2. Klasse'?' selected':''}>2. Klasse</option><option value="1. Klasse"${t.klasse==='1. Klasse'?' selected':''}>1. Klasse</option></select>
           <input id="eb-${t.id}" value="${esc(t.betreff||'')}" placeholder="Betreff" style="grid-column:1/-1">
         </div>
         <div class="edit-actions"><button class="edit-save" onclick="saveEdit('${t.id}')">Speichern</button><button class="edit-cancel" onclick="cancelEdit('${t.id}')">Abbrechen</button></div>
@@ -549,11 +651,19 @@ function startEdit(id){document.getElementById('tv-'+id).style.display='none';do
 function cancelEdit(id){document.getElementById('tv-'+id).style.display='';document.getElementById('ab-'+id).style.display='';document.getElementById('ef-'+id).style.display='none';render()}
 function saveEdit(id){
   const t=trips.find(x=>x.id===id);if(!t)return;
-  const v=document.getElementById('ev-'+id).value.trim(),n=document.getElementById('en-'+id).value.trim(),p=parseFloat(document.getElementById('ep-'+id).value),d=document.getElementById('ed-'+id).value,k=document.getElementById('ek-'+id).value,b=document.getElementById('eb-'+id).value.trim();
-  if(!v||!n||isNaN(p)){msg('Von, Nach und Preis ausfüllen.','error');return}
-  t.von=v;t.nach=n;t.preis=p;t.datum=d||null;t.klasse=k;t.betreff=b;save();msg(v+' → '+n+' aktualisiert!','success');
+  const kat=document.getElementById('ekat-'+id).value;
+  const v=document.getElementById('ev-'+id).value.trim(),n=document.getElementById('en-'+id).value.trim();
+  const beschr=document.getElementById('ebeschr-'+id).value.trim();
+  const p=parseFloat(document.getElementById('ep-'+id).value),d=document.getElementById('ed-'+id).value;
+  const k=document.getElementById('ek-'+id).value,b=document.getElementById('eb-'+id).value.trim();
+  const isTrip=kat==='ÖV-Reise';
+  if(isTrip&&(!v||!n||isNaN(p))){msg('Von, Nach und Preis ausfüllen.','error');return}
+  if(!isTrip&&(!beschr||isNaN(p))){msg('Beschreibung und Preis ausfüllen.','error');return}
+  t.kategorie=kat;t.von=isTrip?v:'';t.nach=isTrip?n:'';t.beschreibung=isTrip?'':beschr;
+  t.preis=p;t.datum=d||null;t.klasse=k||null;t.betreff=b;
+  save();msg(tripLabel(t)+' aktualisiert!','success');
 }
-async function del(id){const t=trips.find(x=>x.id===id);if(!confirm((t?t.von+' → '+t.nach:'Fahrt')+' wirklich löschen?'))return;await deleteFilesForTrip(id);trips=trips.filter(x=>x.id!==id);save()}
+async function del(id){const t=trips.find(x=>x.id===id);if(!confirm((t?tripLabel(t):'Spese')+' wirklich löschen?'))return;await deleteFilesForTrip(id);trips=trips.filter(x=>x.id!==id);save()}
 async function clr(){if(!confirm('Alle Fahrten und Belege löschen?'))return;for(const t of trips)await deleteFilesForTrip(t.id);trips=[];save()}
 
 // ══════════════════════════════════════════
@@ -569,12 +679,12 @@ function msg(t,type='info'){const el=document.createElement('div');el.className=
 // Export
 // ══════════════════════════════════════════
 function csv(){
-  const r=['Von,Nach,Preis,Datum,Klasse,Betreff,Belege'];
-  trips.forEach(t=>{const fn=(t.files||[]).map(f=>f.name).join('; ');r.push(`"${t.von}","${t.nach}",${t.preis.toFixed(2)},${t.datum||''},${t.klasse||''},"${t.betreff||''}","${fn}"`)});
+  const r=['Kategorie,Bezeichnung,Preis,Datum,Klasse,Betreff,Belege'];
+  trips.forEach(t=>{const fn=(t.files||[]).map(f=>f.name).join('; ');r.push(`"${t.kategorie||'ÖV-Reise'}","${tripLabel(t)}",${t.preis.toFixed(2)},${t.datum||''},${t.klasse||''},"${t.betreff||''}","${fn}"`)});
   r.push(`"","TOTAL",${trips.reduce((s,t)=>s+t.preis,0).toFixed(2)},,,,`);
-  dlFile('sbb-fahrten.csv','text/csv',r.join('\n'));
+  dlFile('spesen.csv','text/csv',r.join('\n'));
 }
-function jsn(){const tot=trips.reduce((s,t)=>s+t.preis,0);dlFile('sbb-fahrten.json','application/json',JSON.stringify({fahrten:trips,total:Math.round(tot*100)/100,anzahl:trips.length},null,2))}
+function jsn(){const tot=trips.reduce((s,t)=>s+t.preis,0);dlFile('spesen.json','application/json',JSON.stringify({spesen:trips,total:Math.round(tot*100)/100,anzahl:trips.length},null,2))}
 function dlFile(n,t,c){
   let blob;
   if(t.includes('csv')){const enc=new TextEncoder(),bom=new Uint8Array([0xEF,0xBB,0xBF]),d=enc.encode(c),combined=new Uint8Array(bom.length+d.length);combined.set(bom);combined.set(d,bom.length);blob=new Blob([combined],{type:'text/csv'})}
@@ -583,16 +693,134 @@ function dlFile(n,t,c){
 }
 
 function xlsx(){
-  const rows=[['Von','Nach','Preis','Datum','Klasse','Betreff','Belege']];
-  trips.forEach(t=>{rows.push([t.von,t.nach,t.preis,t.datum||'',t.klasse||'',t.betreff||'',(t.files||[]).map(f=>f.name).join('; ')])});
+  const rows=[['Kategorie','Bezeichnung','Preis','Datum','Klasse','Betreff','Belege']];
+  trips.forEach(t=>{rows.push([t.kategorie||'ÖV-Reise',tripLabel(t),t.preis,t.datum||'',t.klasse||'',t.betreff||'',(t.files||[]).map(f=>f.name).join('; ')])});
   rows.push(['','TOTAL',trips.reduce((s,t)=>s+t.preis,0),'','','','']);
   const ws=XLSX.utils.aoa_to_sheet(rows);
-  // Column widths
-  ws['!cols']=[{wch:20},{wch:20},{wch:10},{wch:12},{wch:10},{wch:20},{wch:30}];
-  // Bold header
+  ws['!cols']=[{wch:12},{wch:25},{wch:10},{wch:12},{wch:10},{wch:20},{wch:30}];
   const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'Fahrten');
-  XLSX.writeFile(wb,'sbb-fahrten.xlsx');
+  XLSX.utils.book_append_sheet(wb,ws,'Spesen');
+  XLSX.writeFile(wb,'spesen.xlsx');
+}
+
+// ══════════════════════════════════════════
+// Odoo Integration
+// ══════════════════════════════════════════
+function loadOdooSettings() {
+  const s = JSON.parse(localStorage.getItem('sbb-odoo') || '{}');
+  if (s.email) document.getElementById('odooEmail').value = s.email;
+  if (s.ref) document.getElementById('odooRef').value = s.ref;
+}
+function saveOdooSettings() {
+  localStorage.setItem('sbb-odoo', JSON.stringify({
+    email: document.getElementById('odooEmail').value.trim(),
+    ref: document.getElementById('odooRef').value.trim()
+  }));
+}
+document.getElementById('odooEmail').addEventListener('change', saveOdooSettings);
+document.getElementById('odooRef').addEventListener('change', saveOdooSettings);
+
+function getOdooSettings() {
+  const email = document.getElementById('odooEmail').value.trim();
+  const ref = document.getElementById('odooRef').value.trim() || 'REISE';
+  if (!email) { msg('Bitte zuerst Odoo-Email in den Einstellungen eintragen.', 'error'); document.getElementById('odooSetup').open = true; return null; }
+  return { email, ref };
+}
+
+async function sendToOdoo(tripId) {
+  const cfg = getOdooSettings(); if (!cfg) return;
+  const t = trips.find(x => x.id === tripId); if (!t) return;
+
+  const subject = `${cfg.ref} ${t.preis.toFixed(2)}`;
+  const body = [
+    tripLabel(t),
+    t.kategorie && t.kategorie !== 'ÖV-Reise' ? `Kategorie: ${t.kategorie}` : '',
+    t.datum ? `Datum: ${fmtD(t.datum)}` : '',
+    t.klasse || '',
+    t.betreff ? `Betreff: ${t.betreff}` : '',
+  ].filter(Boolean).join('\n');
+
+  // Try Web Share API with file attachment
+  if (t.files.length > 0 && navigator.canShare) {
+    try {
+      const fileData = await getFile(t.files[0].fileId);
+      if (fileData) {
+        const blob = new Blob([fileData.data], { type: fileData.type });
+        const file = new File([blob], fileData.name, { type: fileData.type });
+        const shareData = {
+          title: subject,
+          text: `${subject}\n${body}`,
+          files: [file]
+        };
+        if (navigator.canShare(shareData)) {
+          await navigator.share(shareData);
+          msg(t.von + ' → ' + t.nach + ' geteilt!', 'success');
+          return;
+        }
+      }
+    } catch (e) {
+      if (e.name === 'AbortError') return; // User cancelled
+    }
+  }
+
+  // Fallback: mailto
+  const mailto = `mailto:${encodeURIComponent(cfg.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body + '\n\n⚠️ Bitte Beleg manuell anhängen.')}`;
+  window.location.href = mailto;
+  if (t.files.length > 0) {
+    msg('Email geöffnet. Bitte Beleg manuell anhängen.', 'success');
+  } else {
+    msg('Email geöffnet.', 'success');
+  }
+}
+
+async function sendAllToOdoo() {
+  const cfg = getOdooSettings(); if (!cfg) return;
+  const filtered = getFiltered();
+  if (!filtered.length) { msg('Keine Fahrten zum Senden.', 'error'); return; }
+
+  const btn = document.getElementById('btnOdoo');
+  btn.disabled = true;
+
+  // Build one combined email with all trips
+  const lines = filtered.map((t, i) => {
+    return `${i+1}. ${t.von} → ${t.nach} | CHF ${t.preis.toFixed(2)}${t.datum ? ' | ' + fmtD(t.datum) : ''}${t.betreff ? ' | ' + t.betreff : ''}`;
+  });
+  const total = filtered.reduce((s,t) => s + t.preis, 0);
+  lines.push('');
+  lines.push(`TOTAL: CHF ${total.toFixed(2)} (${filtered.length} Fahrten)`);
+
+  const subject = `${cfg.ref} Sammelabrechnung CHF ${total.toFixed(2)}`;
+  const body = lines.join('\n');
+
+  // Try sharing with all attachments
+  if (navigator.canShare) {
+    try {
+      const files = [];
+      for (const t of filtered) {
+        for (const f of (t.files || [])) {
+          const fd = await getFile(f.fileId);
+          if (fd) files.push(new File([new Blob([fd.data], {type: fd.type})], fd.name, {type: fd.type}));
+        }
+      }
+      const shareData = { title: subject, text: `${subject}\n\n${body}` };
+      if (files.length > 0) shareData.files = files;
+      if (navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+        msg('Sammelabrechnung geteilt!', 'success');
+        btn.disabled = false;
+        return;
+      }
+    } catch (e) {
+      if (e.name === 'AbortError') { btn.disabled = false; return; }
+    }
+  }
+
+  // Fallback: mailto
+  const hasFiles = filtered.some(t => t.files && t.files.length > 0);
+  const mailto = `mailto:${encodeURIComponent(cfg.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body + (hasFiles ? '\n\n⚠️ Bitte Belege manuell anhängen (ZIP Export nutzen).' : ''))}`;
+  window.location.href = mailto;
+  msg('Email geöffnet.' + (hasFiles ? ' Belege separat anhängen.' : ''), 'success');
+  btn.disabled = false;
 }
 
 // ══════════════════════════════════════════
@@ -601,36 +829,29 @@ function xlsx(){
 async function autoPaste() {
   try {
     const text = await navigator.clipboard.readText();
-    if (text && text.includes('sbb.ch')) {
-      document.getElementById('urlIn').value = text.trim();
+    if (!text) { msg('Zwischenablage ist leer.', 'error'); return; }
+    const url = extractSbbUrl(text);
+    if (url.includes('sbb')) {
+      document.getElementById('urlIn').value = url;
       parseUrl();
-    } else if (text) {
-      document.getElementById('urlIn').value = text.trim();
-      msg('Eingefügt. Falls es ein SBB-Link ist, drücke "Lesen".', 'success');
     } else {
-      msg('Zwischenablage ist leer.', 'error');
+      document.getElementById('urlIn').value = text.trim();
+      msg('Kein SBB-Link erkannt. Bitte prüfen.', 'error');
     }
   } catch (e) {
-    // Clipboard API blocked — fallback
     document.getElementById('urlIn').focus();
-    msg('Bitte manuell einfügen (lange drücken → Einfügen).', 'error');
+    msg('Zwischenablage nicht verfügbar. Bitte lange drücken → Einfügen.', 'error');
   }
 }
 
-// Handle shared URLs (from SBB app via Share Target)
 function handleShareTarget() {
   const params = new URLSearchParams(window.location.search);
   const shared = params.get('url') || params.get('text') || params.get('title') || '';
-  // Extract URL from shared text
-  const urlMatch = shared.match(/https?:\/\/[^\s]+sbb\.ch[^\s]*/);
-  if (urlMatch) {
-    document.getElementById('urlIn').value = urlMatch[0];
-    // Clean URL params so refresh doesn't re-trigger
+  if (!shared) return;
+  const url = extractSbbUrl(shared);
+  if (url.includes('sbb')) {
     window.history.replaceState({}, '', window.location.pathname);
-    setTimeout(() => parseUrl(), 300);
-  } else if (shared.includes('sbb.ch')) {
-    document.getElementById('urlIn').value = shared;
-    window.history.replaceState({}, '', window.location.pathname);
+    document.getElementById('urlIn').value = url;
     setTimeout(() => parseUrl(), 300);
   }
 }
@@ -643,6 +864,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // Init
+loadOdooSettings();
 render();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
