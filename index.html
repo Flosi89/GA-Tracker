@@ -470,14 +470,123 @@ async function parseUrl() {
   btn.textContent = orig; btn.disabled = false;
 }
 
-function confirmTrip() {
+async function generateReceipt(trip, sbbUrl) {
+  const c = document.createElement('canvas');
+  c.width = 800; c.height = 520;
+  const ctx = c.getContext('2d');
+
+  // Background
+  ctx.fillStyle = '#ffffff';
+  ctx.roundRect(0, 0, 800, 520, 16);
+  ctx.fill();
+
+  // Header bar
+  ctx.fillStyle = '#eb0000';
+  ctx.roundRect(0, 0, 800, 80, [16, 16, 0, 0]);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 28px -apple-system, sans-serif';
+  ctx.fillText('SBB Reisebeleg', 32, 52);
+
+  // Date top right
+  ctx.font = '18px -apple-system, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  const now = new Date().toLocaleDateString('de-CH') + ' ' + new Date().toLocaleTimeString('de-CH', {hour:'2-digit',minute:'2-digit'});
+  ctx.textAlign = 'right';
+  ctx.fillText('Erstellt: ' + now, 768, 52);
+  ctx.textAlign = 'left';
+
+  // Route
+  ctx.fillStyle = '#1e293b';
+  ctx.font = 'bold 32px -apple-system, sans-serif';
+  ctx.fillText(trip.von + '  →  ' + trip.nach, 32, 140);
+
+  // Details grid
+  ctx.font = '16px -apple-system, sans-serif';
+  ctx.fillStyle = '#64748b';
+  const details = [];
+  if (trip.datum) details.push(['Datum', fmtD(trip.datum)]);
+  if (trip.zeit) details.push(['Abfahrt', trip.zeit + ' Uhr']);
+  if (trip.klasse) details.push(['Klasse', trip.klasse]);
+  details.push(['Preis', 'CHF ' + trip.preis.toFixed(2)]);
+  if (trip.betreff) details.push(['Betreff', trip.betreff]);
+
+  let y = 185;
+  details.forEach(([label, value]) => {
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '15px -apple-system, sans-serif';
+    ctx.fillText(label, 32, y);
+    ctx.fillStyle = '#1e293b';
+    ctx.font = '18px -apple-system, sans-serif';
+    ctx.fillText(value, 180, y);
+    y += 36;
+  });
+
+  // Divider
+  y += 10;
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(32, y); ctx.lineTo(768, y); ctx.stroke();
+  y += 25;
+
+  // Price highlight
+  ctx.fillStyle = '#f0fdfa';
+  ctx.roundRect(32, y, 736, 60, 10);
+  ctx.fill();
+  ctx.fillStyle = '#0f766e';
+  ctx.font = 'bold 28px -apple-system, sans-serif';
+  ctx.fillText('CHF ' + trip.preis.toFixed(2), 52, y + 40);
+
+  // URL reference
+  y += 85;
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '12px -apple-system, sans-serif';
+  if (sbbUrl) {
+    const urlShort = sbbUrl.length > 90 ? sbbUrl.slice(0, 90) + '...' : sbbUrl;
+    ctx.fillText('Ref: ' + urlShort, 32, y);
+  }
+
+  // Convert to blob
+  return new Promise(resolve => {
+    c.toBlob(blob => resolve(blob), 'image/png');
+  });
+}
+
+async function autoAttachReceipt(trip, sbbUrl) {
+  try {
+    const blob = await generateReceipt(trip, sbbUrl);
+    if (!blob) return;
+    const fileName = 'Beleg_' + trip.von + '_' + trip.nach + '_' + (trip.datum || 'keinDatum') + '.png';
+    const fid = 'f_' + uid();
+    const data = await blob.arrayBuffer();
+    const db = await openDB();
+    await new Promise((r, j) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).put({ id: fid, name: fileName, type: 'image/png', size: blob.size, data, created: Date.now() });
+      tx.oncomplete = () => r(); tx.onerror = () => j(tx.error);
+    });
+    trip.files.push({ fileId: fid, name: fileName, type: 'image/png', size: blob.size });
+  } catch (e) { console.error('Receipt generation failed:', e); }
+}
+
+async function confirmTrip() {
   if (!pend) return;
   const pr = parseFloat(document.getElementById('pvP').value);
   if (isNaN(pr)||pr<=0) { msg('Bitte Preis eingeben.','error'); return; }
   const kl = document.getElementById('pvK').value, ret = document.getElementById('pvR2').value==='retour', bet = document.getElementById('pvB').value.trim();
-  trips.push({ id:uid(), kategorie:'ÖV-Reise', von:pend.von, nach:pend.nach, beschreibung:'', preis:pr, datum:pend.datum, klasse:kl, betreff:bet, files:[] });
-  if (ret) trips.push({ id:uid(), kategorie:'ÖV-Reise', von:pend.nach, nach:pend.von, beschreibung:'', preis:pr, datum:pend.datum, klasse:kl, betreff:bet, files:[] });
-  save(); msg(pend.von+' → '+pend.nach+(ret?' (retour)':'')+' hinzugefügt!','success');
+  const sbbUrl = document.getElementById('urlIn').value.trim();
+
+  const trip1 = { id:uid(), kategorie:'ÖV-Reise', von:pend.von, nach:pend.nach, beschreibung:'', preis:pr, datum:pend.datum, klasse:kl, betreff:bet, files:[], zeit:pend.zeit||null };
+  trips.push(trip1);
+  await autoAttachReceipt(trip1, sbbUrl);
+
+  if (ret) {
+    const trip2 = { id:uid(), kategorie:'ÖV-Reise', von:pend.nach, nach:pend.von, beschreibung:'', preis:pr, datum:pend.datum, klasse:kl, betreff:bet, files:[], zeit:null };
+    trips.push(trip2);
+    await autoAttachReceipt(trip2, sbbUrl);
+  }
+
+  save(); msg(pend.von+' → '+pend.nach+(ret?' (retour)':'')+' hinzugefügt mit Beleg!','success');
   pend=null; document.getElementById('pv').classList.remove('show'); document.getElementById('urlIn').value=''; document.getElementById('pvB').value='';
 }
 
