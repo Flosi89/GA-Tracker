@@ -763,7 +763,10 @@ async function sendToOdoo(tripId) {
   const sender = document.getElementById('odooSender').value.trim();
 
   const subject = `${cfg.ref} ${t.preis.toFixed(2)}`;
-  const body = [
+  const bodyLines = [
+    `An: ${cfg.email}`,
+    `Betreff: ${subject}`,
+    '',
     tripLabel(t),
     t.kategorie && t.kategorie !== 'ÖV-Reise' ? `Kategorie: ${t.kategorie}` : '',
     t.datum ? `Datum: ${fmtD(t.datum)}` : '',
@@ -771,41 +774,33 @@ async function sendToOdoo(tripId) {
     t.betreff ? `Betreff: ${t.betreff}` : '',
   ].filter(Boolean).join('\n');
 
-  // Collect all file attachments
+  // Collect files
   const shareFiles = [];
   for (const f of (t.files || [])) {
     try {
-      const fileData = await getFile(f.fileId);
-      if (fileData) {
-        const blob = new Blob([fileData.data], { type: fileData.type });
-        shareFiles.push(new File([blob], fileData.name, { type: fileData.type }));
-      }
+      const fd = await getFile(f.fileId);
+      if (fd) shareFiles.push(new File([new Blob([fd.data], {type:fd.type})], fd.name, {type:fd.type}));
     } catch(e) {}
   }
 
-  // Try Web Share API with files
+  // Share with files
   if (shareFiles.length > 0 && navigator.canShare) {
-    const shareData = { title: subject, text: `An: ${cfg.email}\n${subject}\n\n${body}`, files: shareFiles };
     try {
+      const shareData = { title: subject, text: bodyLines, files: shareFiles };
       if (navigator.canShare(shareData)) {
-        if (sender) msg('Sende von: ' + sender, 'success');
         await navigator.share(shareData);
-        msg(tripLabel(t) + ' geteilt!', 'success');
         t.archived = true; save();
+        msg(tripLabel(t) + ' geteilt + archiviert!', 'success');
         return;
       }
-    } catch (e) {
-      if (e.name === 'AbortError') return;
-    }
+    } catch (e) { if (e.name === 'AbortError') return; }
   }
 
-  // Fallback: mailto (no file attachment possible)
-  const senderHint = sender ? `\n\n⚠️ Bitte von ${sender} senden.` : '';
-  const fileHint = shareFiles.length > 0 ? '\n⚠️ Bitte Beleg manuell anhängen.' : '';
-  const mailto = `mailto:${encodeURIComponent(cfg.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body + senderHint + fileHint)}`;
+  // Fallback: mailto
+  const mailto = `mailto:${encodeURIComponent(cfg.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyLines + (shareFiles.length ? '\n\n⚠️ Bitte Beleg manuell anhängen.' : ''))}`;
   window.location.href = mailto;
   t.archived = true; save();
-  msg('Email geöffnet.' + (sender ? ' Absender: ' + sender : ''), 'success');
+  msg('Email geöffnet. An: ' + cfg.email, 'success');
 }
 
 async function sendAllToOdoo() {
@@ -816,48 +811,88 @@ async function sendAllToOdoo() {
 
   const btn = document.getElementById('btnOdoo');
   btn.disabled = true;
+  btn.textContent = '⏳ Wird vorbereitet...';
 
-  const lines = filtered.map((t, i) => {
-    return `${i+1}. ${tripLabel(t)} | CHF ${t.preis.toFixed(2)}${t.datum ? ' | ' + fmtD(t.datum) : ''}${t.betreff ? ' | ' + t.betreff : ''}`;
-  });
   const total = filtered.reduce((s,t) => s + t.preis, 0);
-  lines.push('');
-  lines.push(`TOTAL: CHF ${total.toFixed(2)} (${filtered.length} Spesen)`);
-
   const subject = `${cfg.ref} Sammelabrechnung CHF ${total.toFixed(2)}`;
-  const body = lines.join('\n');
+  const lines = filtered.map((t, i) =>
+    `${i+1}. ${tripLabel(t)} | CHF ${t.preis.toFixed(2)}${t.datum ? ' | ' + fmtD(t.datum) : ''}${t.betreff ? ' | ' + t.betreff : ''}`
+  );
+  lines.push('', `TOTAL: CHF ${total.toFixed(2)} (${filtered.length} Spesen)`);
 
-  if (navigator.canShare) {
-    try {
-      const files = [];
-      for (const t of filtered) {
-        for (const f of (t.files || [])) {
-          const fd = await getFile(f.fileId);
-          if (fd) files.push(new File([new Blob([fd.data], {type: fd.type})], fd.name, {type: fd.type}));
-        }
+  const bodyText = [
+    `An: ${cfg.email}`,
+    `Betreff: ${subject}`,
+    sender ? `Von: ${sender}` : '',
+    '', ...lines
+  ].filter(Boolean).join('\n');
+
+  // Collect ALL files from all trips into a single ZIP
+  try {
+    const allFiles = [];
+    for (const t of filtered) {
+      for (const f of (t.files || [])) {
+        const fd = await getFile(f.fileId);
+        if (fd) allFiles.push({ name: fd.name, data: fd.data, type: fd.type, trip: tripLabel(t) });
       }
-      const shareData = { title: subject, text: `An: ${cfg.email}\n\n${body}` };
-      if (files.length > 0) shareData.files = files;
-      if (navigator.canShare(shareData)) {
-        if (sender) msg('Sende von: ' + sender, 'success');
-        await navigator.share(shareData);
-        msg('Sammelabrechnung geteilt!', 'success');
-        filtered.forEach(t => t.archived = true); save();
-        btn.disabled = false;
-        return;
-      }
-    } catch (e) {
-      if (e.name === 'AbortError') { btn.disabled = false; return; }
     }
-  }
 
-  const senderHint = sender ? `\n\n⚠️ Bitte von ${sender} senden.` : '';
-  const hasFiles = filtered.some(t => t.files && t.files.length > 0);
-  const mailto = `mailto:${encodeURIComponent(cfg.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body + senderHint + (hasFiles ? '\n⚠️ Bitte Belege manuell anhängen (ZIP Export nutzen).' : ''))}`;
+    if (allFiles.length > 0 && typeof JSZip !== 'undefined') {
+      // Bundle all files into one ZIP
+      const zip = new JSZip();
+      const usedNames = {};
+      allFiles.forEach(f => {
+        // Avoid duplicate filenames
+        let name = f.name;
+        if (usedNames[name]) { usedNames[name]++; const ext = name.lastIndexOf('.'); name = name.slice(0, ext) + '_' + usedNames[name] + name.slice(ext); }
+        else usedNames[name] = 1;
+        zip.file(name, f.data);
+      });
+      // Add summary CSV
+      const enc = new TextEncoder(), bom = new Uint8Array([0xEF,0xBB,0xBF]);
+      const csvLines = ['Bezeichnung,Preis,Datum,Betreff'];
+      filtered.forEach(t => csvLines.push(`"${tripLabel(t)}",${t.preis.toFixed(2)},${t.datum||''},"${t.betreff||''}"`));
+      csvLines.push(`"TOTAL",${total.toFixed(2)},,`);
+      const csvData = enc.encode(csvLines.join('\n'));
+      const csvCombined = new Uint8Array(bom.length + csvData.length);
+      csvCombined.set(bom); csvCombined.set(csvData, bom.length);
+      zip.file('uebersicht.csv', csvCombined);
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const zipFile = new File([zipBlob], 'spesen-belege.zip', { type: 'application/zip' });
+
+      if (navigator.canShare && navigator.canShare({ files: [zipFile] })) {
+        try {
+          await navigator.share({ title: subject, text: bodyText, files: [zipFile] });
+          filtered.forEach(t => t.archived = true); save();
+          msg('Sammelabrechnung mit ' + allFiles.length + ' Belegen geteilt + archiviert!', 'success');
+          btn.disabled = false; btn.textContent = '✉️ Alle Spesen an Odoo senden';
+          return;
+        } catch (e) { if (e.name === 'AbortError') { btn.disabled = false; btn.textContent = '✉️ Alle Spesen an Odoo senden'; return; } }
+      }
+    }
+
+    // No files or share not available: try share without files
+    if (navigator.canShare) {
+      try {
+        const sd = { title: subject, text: bodyText };
+        if (navigator.canShare(sd)) {
+          await navigator.share(sd);
+          filtered.forEach(t => t.archived = true); save();
+          msg('Sammelabrechnung geteilt + archiviert!', 'success');
+          btn.disabled = false; btn.textContent = '✉️ Alle Spesen an Odoo senden';
+          return;
+        }
+      } catch (e) { if (e.name === 'AbortError') { btn.disabled = false; btn.textContent = '✉️ Alle Spesen an Odoo senden'; return; } }
+    }
+  } catch(e) { console.error(e); }
+
+  // Final fallback: mailto
+  const mailto = `mailto:${encodeURIComponent(cfg.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n') + '\n\n⚠️ Bitte Belege als ZIP anhängen.')}`;
   window.location.href = mailto;
   filtered.forEach(t => t.archived = true); save();
-  msg('Email geöffnet.' + (sender ? ' Absender: ' + sender : ''), 'success');
-  btn.disabled = false;
+  msg('Email geöffnet. Belege separat als ZIP anhängen.', 'success');
+  btn.disabled = false; btn.textContent = '✉️ Alle Spesen an Odoo senden';
 }
 
 // ══════════════════════════════════════════
