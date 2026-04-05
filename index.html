@@ -79,12 +79,15 @@
   .filter-reset { background:none; border:none; color:var(--g500); font-size:12px; cursor:pointer; font-family:inherit; text-decoration:underline; }
 
   /* Summary */
-  .summary { background:white; border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 20px; margin-bottom:12px; display:none; align-items:center; justify-content:space-between; }
-  .summary.show { display: flex; }
+  .summary { background:white; border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 20px; margin-bottom:12px; display:none; }
+  .summary.show { display: block; }
   .s-label { font-size:11px; text-transform:uppercase; letter-spacing:0.8px; color:var(--g500); font-weight:600; }
   .s-total { font-size:28px; font-weight:700; letter-spacing:-0.5px; margin-top:2px; }
   .s-count { font-size:13px; color:var(--g500); margin-left:8px; font-weight:400; }
   .s-filtered { font-size:11px; color:var(--blue); margin-top:2px; }
+  .kat-breakdown { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; padding-top:10px; border-top:1px solid var(--g200); }
+  .kat-chip { font-size:11px; background:var(--g50); border:1px solid var(--g200); border-radius:6px; padding:4px 8px; color:var(--g700); display:flex; align-items:center; gap:4px; }
+  .kat-chip .kat-amount { font-weight:700; }
   .btn-txt { background:none; border:none; font-size:12px; color:var(--g500); cursor:pointer; padding:8px 12px; border-radius:8px; font-family:inherit; }
   .btn-txt:hover { color:var(--red); background:var(--red-light); }
 
@@ -244,13 +247,37 @@
   </div>
 
   <!-- Summary -->
-  <div class="summary" id="sum"><div><div class="s-label">Total</div><div class="s-total" id="tot"></div><div class="s-filtered" id="filtInfo"></div></div><button class="btn-txt" onclick="clr()">Alle löschen</button></div>
+  <div class="summary" id="sum">
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div><div class="s-label">Total</div><div class="s-total" id="tot"></div></div>
+        <button class="btn-txt" onclick="clr()">Alle löschen</button>
+      </div>
+      <div class="s-filtered" id="filtInfo"></div>
+      <div class="kat-breakdown" id="katBreakdown"></div>
+    </div>
+  </div>
 
   <!-- Filter & Sort -->
   <div class="filter-bar" id="filterBar">
     <div class="filter-row">
       <span class="filter-label">Zeitraum</span>
       <input type="month" id="fMonth" style="width:auto;">
+      <span class="filter-label" style="margin-left:4px;">Kategorie</span>
+      <select id="fKat">
+        <option value="all">Alle</option>
+        <option value="ÖV-Reise">🚂 ÖV-Reise</option>
+        <option value="Essen">🍽️ Essen</option>
+        <option value="Unterkunft">🏨 Unterkunft</option>
+        <option value="Material">📦 Material</option>
+        <option value="Sonstiges">📝 Sonstiges</option>
+      </select>
+      <span class="filter-label" style="margin-left:4px;">Status</span>
+      <select id="fArchive">
+        <option value="all">Alle</option>
+        <option value="open" selected>Offen</option>
+        <option value="archived">Archiviert</option>
+      </select>
       <span class="filter-label" style="margin-left:4px;">Sortierung</span>
       <select id="fSort">
         <option value="manual">Manuell</option>
@@ -259,12 +286,6 @@
         <option value="price-desc">Preis ↓</option>
         <option value="price-asc">Preis ↑</option>
         <option value="route">Route A-Z</option>
-      </select>
-      <span class="filter-label" style="margin-left:4px;">Status</span>
-      <select id="fArchive">
-        <option value="all">Alle</option>
-        <option value="open" selected>Offen</option>
-        <option value="archived">Archiviert</option>
       </select>
       <button class="filter-reset" onclick="resetFilters()">Zurücksetzen</button>
     </div>
@@ -469,6 +490,8 @@ function getFiltered() {
   let list = [...trips];
   const month = document.getElementById('fMonth').value;
   if (month) list = list.filter(t => t.datum && t.datum.startsWith(month));
+  const kat = document.getElementById('fKat').value;
+  if (kat !== 'all') list = list.filter(t => (t.kategorie||'ÖV-Reise') === kat);
   const archive = document.getElementById('fArchive').value;
   if (archive === 'open') list = list.filter(t => !t.archived);
   else if (archive === 'archived') list = list.filter(t => t.archived);
@@ -492,12 +515,14 @@ function resetFilters() {
   document.getElementById('fMonth').value = '';
   document.getElementById('fSort').value = 'manual';
   document.getElementById('fArchive').value = 'open';
+  document.getElementById('fKat').value = 'all';
   render();
 }
 
 document.getElementById('fMonth').addEventListener('change', render);
 document.getElementById('fSort').addEventListener('change', render);
 document.getElementById('fArchive').addEventListener('change', render);
+document.getElementById('fKat').addEventListener('change', render);
 
 // ══════════════════════════════════════════
 // Statistics
@@ -618,6 +643,16 @@ function render() {
   if(isFiltered) infoparts.push('Gefiltert ('+trips.length+' total: CHF '+trips.reduce((a,t)=>a+t.preis,0).toFixed(2)+')');
   if(archivedCount>0) infoparts.push(openCount+' offen, '+archivedCount+' exportiert');
   document.getElementById('filtInfo').textContent=infoparts.join(' · ');
+
+  // Category breakdown
+  const katTotals={};
+  filtered.forEach(t=>{const k=t.kategorie||'ÖV-Reise';if(!katTotals[k])katTotals[k]={count:0,total:0};katTotals[k].count++;katTotals[k].total+=t.preis});
+  const katKeys=Object.keys(katTotals);
+  const kb=document.getElementById('katBreakdown');
+  if(katKeys.length>1){
+    kb.style.display='flex';
+    kb.innerHTML=katKeys.map(k=>`<div class="kat-chip">${KAT_ICONS[k]||'📝'} ${esc(k)} <span class="kat-amount">CHF ${katTotals[k].total.toFixed(2)}</span> <span style="color:var(--g500)">(${katTotals[k].count})</span></div>`).join('');
+  } else { kb.style.display='none'; }
 
   l.innerHTML = filtered.map((t, i) => {
     const filesHtml = (t.files||[]).map(f => {
