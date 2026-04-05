@@ -779,6 +779,19 @@ function saveEdit(id){
 }
 async function del(id){const t=trips.find(x=>x.id===id);if(!confirm((t?tripLabel(t):'Spese')+' wirklich löschen?'))return;await deleteFilesForTrip(id);trips=trips.filter(x=>x.id!==id);save()}
 async function clr(){if(!confirm('Alle Fahrten und Belege löschen?'))return;for(const t of trips)await deleteFilesForTrip(t.id);trips=[];save()}
+async function cleanupOrphans(){
+  let removed=0;
+  for(const t of trips){
+    if(!t.files||!t.files.length)continue;
+    const valid=[];
+    for(const f of t.files){
+      try{const d=await getFile(f.fileId);if(d)valid.push(f);else removed++}catch{removed++}
+    }
+    t.files=valid;
+  }
+  if(removed>0){save();msg(removed+' ungültige Beleg-Verweise entfernt.','success')}
+  else msg('Alle Belege OK, keine Bereinigung nötig.','success');
+}
 
 // ══════════════════════════════════════════
 // Helpers
@@ -1025,6 +1038,7 @@ if ('serviceWorker' in navigator) {
 // Init
 loadOdooSettings();
 render();
+cleanupOrphans();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
