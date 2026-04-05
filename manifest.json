@@ -1,11 +1,11 @@
 {
-  "name": "SBB Fahrten-Tracker",
-  "short_name": "SBB Tracker",
-  "description": "SBB-Fahrten erfassen, Belege anhängen, Ausgaben im Blick",
+  "name": "Spesen-Tracker",
+  "short_name": "Spesen",
+  "description": "Spesen erfassen, Belege anhängen, nach Odoo exportieren",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#f8f9fa",
-  "theme_color": "#eb0000",
+  "theme_color": "#1e293b",
   "orientation": "portrait",
   "icons": [
     {
