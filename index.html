@@ -274,7 +274,12 @@
     <div class="odoo-grid">
       <input id="odooEmail" placeholder="spesen@firma.ch" type="email">
       <input id="odooRef" placeholder="Referenz (z.B. REISE)" value="REISE">
-      <div class="odoo-hint">Email-Alias aus Odoo Spesen → Konfiguration → Einstellungen. Referenz = interne Referenz der Spesenkategorie.</div>
+      <input id="odooSender" placeholder="Mein Absender (z.B. florian@firma.ch)" type="email" style="grid-column:1/-1">
+      <div class="odoo-hint">
+        <strong>Empfänger:</strong> Odoo Spesen-Alias (Spesen → Konfiguration → Einstellungen)<br>
+        <strong>Referenz:</strong> Interne Referenz der Spesenkategorie<br>
+        <strong>Absender:</strong> Deine Arbeits-Email (muss in Odoo hinterlegt sein)
+      </div>
     </div>
   </details>
 
@@ -710,15 +715,18 @@ function loadOdooSettings() {
   const s = JSON.parse(localStorage.getItem('sbb-odoo') || '{}');
   if (s.email) document.getElementById('odooEmail').value = s.email;
   if (s.ref) document.getElementById('odooRef').value = s.ref;
+  if (s.sender) document.getElementById('odooSender').value = s.sender;
 }
 function saveOdooSettings() {
   localStorage.setItem('sbb-odoo', JSON.stringify({
     email: document.getElementById('odooEmail').value.trim(),
-    ref: document.getElementById('odooRef').value.trim()
+    ref: document.getElementById('odooRef').value.trim(),
+    sender: document.getElementById('odooSender').value.trim()
   }));
 }
 document.getElementById('odooEmail').addEventListener('change', saveOdooSettings);
 document.getElementById('odooRef').addEventListener('change', saveOdooSettings);
+document.getElementById('odooSender').addEventListener('change', saveOdooSettings);
 
 function getOdooSettings() {
   const email = document.getElementById('odooEmail').value.trim();
@@ -730,6 +738,7 @@ function getOdooSettings() {
 async function sendToOdoo(tripId) {
   const cfg = getOdooSettings(); if (!cfg) return;
   const t = trips.find(x => x.id === tripId); if (!t) return;
+  const sender = document.getElementById('odooSender').value.trim();
 
   const subject = `${cfg.ref} ${t.preis.toFixed(2)}`;
   const body = [
@@ -740,59 +749,60 @@ async function sendToOdoo(tripId) {
     t.betreff ? `Betreff: ${t.betreff}` : '',
   ].filter(Boolean).join('\n');
 
-  // Try Web Share API with file attachment
-  if (t.files.length > 0 && navigator.canShare) {
+  // Collect all file attachments
+  const shareFiles = [];
+  for (const f of (t.files || [])) {
     try {
-      const fileData = await getFile(t.files[0].fileId);
+      const fileData = await getFile(f.fileId);
       if (fileData) {
         const blob = new Blob([fileData.data], { type: fileData.type });
-        const file = new File([blob], fileData.name, { type: fileData.type });
-        const shareData = {
-          title: subject,
-          text: `${subject}\n${body}`,
-          files: [file]
-        };
-        if (navigator.canShare(shareData)) {
-          await navigator.share(shareData);
-          msg(t.von + ' → ' + t.nach + ' geteilt!', 'success');
-          return;
-        }
+        shareFiles.push(new File([blob], fileData.name, { type: fileData.type }));
+      }
+    } catch(e) {}
+  }
+
+  // Try Web Share API with files
+  if (shareFiles.length > 0 && navigator.canShare) {
+    const shareData = { title: subject, text: `An: ${cfg.email}\n${subject}\n\n${body}`, files: shareFiles };
+    try {
+      if (navigator.canShare(shareData)) {
+        if (sender) msg('Sende von: ' + sender, 'success');
+        await navigator.share(shareData);
+        msg(tripLabel(t) + ' geteilt!', 'success');
+        return;
       }
     } catch (e) {
-      if (e.name === 'AbortError') return; // User cancelled
+      if (e.name === 'AbortError') return;
     }
   }
 
-  // Fallback: mailto
-  const mailto = `mailto:${encodeURIComponent(cfg.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body + '\n\n⚠️ Bitte Beleg manuell anhängen.')}`;
+  // Fallback: mailto (no file attachment possible)
+  const senderHint = sender ? `\n\n⚠️ Bitte von ${sender} senden.` : '';
+  const fileHint = shareFiles.length > 0 ? '\n⚠️ Bitte Beleg manuell anhängen.' : '';
+  const mailto = `mailto:${encodeURIComponent(cfg.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body + senderHint + fileHint)}`;
   window.location.href = mailto;
-  if (t.files.length > 0) {
-    msg('Email geöffnet. Bitte Beleg manuell anhängen.', 'success');
-  } else {
-    msg('Email geöffnet.', 'success');
-  }
+  msg('Email geöffnet.' + (sender ? ' Absender: ' + sender : ''), 'success');
 }
 
 async function sendAllToOdoo() {
   const cfg = getOdooSettings(); if (!cfg) return;
   const filtered = getFiltered();
-  if (!filtered.length) { msg('Keine Fahrten zum Senden.', 'error'); return; }
+  if (!filtered.length) { msg('Keine Spesen zum Senden.', 'error'); return; }
+  const sender = document.getElementById('odooSender').value.trim();
 
   const btn = document.getElementById('btnOdoo');
   btn.disabled = true;
 
-  // Build one combined email with all trips
   const lines = filtered.map((t, i) => {
-    return `${i+1}. ${t.von} → ${t.nach} | CHF ${t.preis.toFixed(2)}${t.datum ? ' | ' + fmtD(t.datum) : ''}${t.betreff ? ' | ' + t.betreff : ''}`;
+    return `${i+1}. ${tripLabel(t)} | CHF ${t.preis.toFixed(2)}${t.datum ? ' | ' + fmtD(t.datum) : ''}${t.betreff ? ' | ' + t.betreff : ''}`;
   });
   const total = filtered.reduce((s,t) => s + t.preis, 0);
   lines.push('');
-  lines.push(`TOTAL: CHF ${total.toFixed(2)} (${filtered.length} Fahrten)`);
+  lines.push(`TOTAL: CHF ${total.toFixed(2)} (${filtered.length} Spesen)`);
 
   const subject = `${cfg.ref} Sammelabrechnung CHF ${total.toFixed(2)}`;
   const body = lines.join('\n');
 
-  // Try sharing with all attachments
   if (navigator.canShare) {
     try {
       const files = [];
@@ -802,9 +812,10 @@ async function sendAllToOdoo() {
           if (fd) files.push(new File([new Blob([fd.data], {type: fd.type})], fd.name, {type: fd.type}));
         }
       }
-      const shareData = { title: subject, text: `${subject}\n\n${body}` };
+      const shareData = { title: subject, text: `An: ${cfg.email}\n\n${body}` };
       if (files.length > 0) shareData.files = files;
       if (navigator.canShare(shareData)) {
+        if (sender) msg('Sende von: ' + sender, 'success');
         await navigator.share(shareData);
         msg('Sammelabrechnung geteilt!', 'success');
         btn.disabled = false;
@@ -815,11 +826,11 @@ async function sendAllToOdoo() {
     }
   }
 
-  // Fallback: mailto
+  const senderHint = sender ? `\n\n⚠️ Bitte von ${sender} senden.` : '';
   const hasFiles = filtered.some(t => t.files && t.files.length > 0);
-  const mailto = `mailto:${encodeURIComponent(cfg.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body + (hasFiles ? '\n\n⚠️ Bitte Belege manuell anhängen (ZIP Export nutzen).' : ''))}`;
+  const mailto = `mailto:${encodeURIComponent(cfg.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body + senderHint + (hasFiles ? '\n⚠️ Bitte Belege manuell anhängen (ZIP Export nutzen).' : ''))}`;
   window.location.href = mailto;
-  msg('Email geöffnet.' + (hasFiles ? ' Belege separat anhängen.' : ''), 'success');
+  msg('Email geöffnet.' + (sender ? ' Absender: ' + sender : ''), 'success');
   btn.disabled = false;
 }
 
