@@ -70,47 +70,62 @@
   .btn-sec { padding:10px 16px; background:none; color:var(--g600); border:1px solid var(--g300); border-radius:8px; font-size:14px; cursor:pointer; font-family:inherit; }
 
   /* Filter bar */
-  .filter-bar { background:white; border-radius:var(--radius); box-shadow:var(--shadow); padding:12px 16px; margin-bottom:12px; display:none; }
+  .filter-bar { background:white; border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px; margin-bottom:12px; display:none; }
   .filter-bar.show { display: block; }
-  .filter-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  .filter-row select, .filter-row input { padding:8px 10px; border:1px solid var(--g300); border-radius:6px; font-size:12px; font-family:inherit; background:white; outline:none; }
-  .filter-row select:focus, .filter-row input:focus { border-color:var(--red); }
-  .filter-label { font-size:11px; font-weight:600; color:var(--g500); text-transform:uppercase; letter-spacing:0.5px; }
-  .filter-reset { background:none; border:none; color:var(--g500); font-size:12px; cursor:pointer; font-family:inherit; text-decoration:underline; }
+  .filter-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .filter-cell { display:flex; flex-direction:column; gap:3px; }
+  .filter-cell label { font-size:10px; font-weight:600; color:var(--g500); text-transform:uppercase; letter-spacing:0.5px; }
+  .filter-cell select, .filter-cell input { padding:9px 10px; border:1px solid var(--g300); border-radius:8px; font-size:13px; font-family:inherit; background:white; outline:none; width:100%; appearance:auto; }
+  .filter-cell select:focus, .filter-cell input:focus { border-color:var(--red); }
+  .filter-actions { display:flex; justify-content:flex-end; margin-top:8px; }
+  .filter-reset { background:none; border:none; color:var(--g500); font-size:12px; cursor:pointer; font-family:inherit; text-decoration:underline; padding:4px 0; }
 
   /* Summary */
-  .summary { background:white; border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 20px; margin-bottom:12px; display:none; }
+  .summary { background:white; border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; margin-bottom:12px; display:none; }
   .summary.show { display: block; }
-  .s-label { font-size:11px; text-transform:uppercase; letter-spacing:0.8px; color:var(--g500); font-weight:600; }
-  .s-total { font-size:28px; font-weight:700; letter-spacing:-0.5px; margin-top:2px; }
-  .s-count { font-size:13px; color:var(--g500); margin-left:8px; font-weight:400; }
-  .s-filtered { font-size:11px; color:var(--blue); margin-top:2px; }
-  .kat-breakdown { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; padding-top:10px; border-top:1px solid var(--g200); }
-  .kat-chip { font-size:11px; background:var(--g50); border:1px solid var(--g200); border-radius:6px; padding:4px 8px; color:var(--g700); display:flex; align-items:center; gap:4px; }
-  .kat-chip .kat-amount { font-weight:700; }
+  .s-top { display:flex; align-items:flex-start; justify-content:space-between; }
+  .s-label { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--g500); font-weight:600; }
+  .s-total { font-size:32px; font-weight:700; letter-spacing:-0.5px; margin-top:2px; line-height:1.1; }
+  .s-count { font-size:13px; color:var(--g500); font-weight:400; display:block; margin-top:2px; }
+  .s-filtered { font-size:11px; color:var(--blue); margin-top:6px; }
+  .kat-breakdown { margin-top:14px; padding-top:14px; border-top:1px solid var(--g200); display:grid; gap:0; }
+  .kat-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--g200); }
+  .kat-row:last-child { border-bottom:none; }
+  .kat-left { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--g700); }
+  .kat-icon { font-size:16px; width:24px; text-align:center; }
+  .kat-name { font-weight:500; }
+  .kat-count { color:var(--g500); font-size:12px; }
+  .kat-right { font-size:14px; font-weight:700; color:var(--g900); }
+  .kat-bar { height:4px; background:var(--g200); border-radius:2px; margin-top:4px; overflow:hidden; }
+  .kat-bar-fill { height:100%; background:var(--red); border-radius:2px; }
   .btn-txt { background:none; border:none; font-size:12px; color:var(--g500); cursor:pointer; padding:8px 12px; border-radius:8px; font-family:inherit; }
   .btn-txt:hover { color:var(--red); background:var(--red-light); }
 
   /* Stats */
-  .stats { background:white; border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin-bottom:12px; display:none; }
+  .stats { background:white; border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; margin-bottom:12px; display:none; }
   .stats.show { display: block; }
-  .stats h3 { font-size:14px; font-weight:700; margin-bottom:12px; }
+  .stats h3 { font-size:15px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:6px; }
   .stats-toggle { background:none; border:none; font-size:13px; color:var(--blue); cursor:pointer; font-family:inherit; font-weight:600; margin-bottom:12px; display:none; }
   .stats-toggle.show { display:block; }
-  .stat-section { margin-bottom:16px; }
-  .stat-section:last-child { margin-bottom:0; }
-  .stat-title { font-size:12px; font-weight:600; color:var(--g600); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px; }
-  .bar-chart { display:flex; flex-direction:column; gap:6px; }
-  .bar-row { display:flex; align-items:center; gap:8px; font-size:12px; }
-  .bar-label { width:55px; text-align:right; color:var(--g600); flex-shrink:0; font-size:11px; }
-  .bar-track { flex:1; height:20px; background:var(--g200); border-radius:4px; overflow:hidden; position:relative; }
-  .bar-fill { height:100%; background:var(--red); border-radius:4px; transition:width 0.3s ease; min-width:2px; }
-  .bar-val { width:65px; font-weight:600; color:var(--g900); font-size:11px; flex-shrink:0; }
-  .stat-list { display:flex; flex-direction:column; gap:4px; }
-  .stat-row { display:flex; justify-content:space-between; font-size:13px; padding:6px 0; border-bottom:1px solid var(--g200); }
+  .stat-section { margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--g200); }
+  .stat-section:last-child { margin-bottom:0; padding-bottom:0; border-bottom:none; }
+  .stat-title { font-size:10px; font-weight:600; color:var(--g500); margin-bottom:10px; text-transform:uppercase; letter-spacing:1px; }
+  .bar-chart { display:flex; flex-direction:column; gap:8px; }
+  .bar-row { display:grid; grid-template-columns:auto 1fr 70px; align-items:center; gap:8px; }
+  .bar-label { text-align:right; color:var(--g600); font-size:12px; font-weight:500; min-width:40px; white-space:nowrap; }
+  .bar-track { height:24px; background:var(--g200); border-radius:6px; overflow:hidden; }
+  .bar-fill { height:100%; background:linear-gradient(90deg, var(--red), #ff4444); border-radius:6px; transition:width 0.3s ease; min-width:3px; }
+  .bar-val { font-weight:700; color:var(--g900); font-size:13px; }
+  .stat-list { display:flex; flex-direction:column; }
+  .stat-row { display:flex; justify-content:space-between; align-items:center; font-size:13px; padding:8px 0; border-bottom:1px solid var(--g200); }
   .stat-row:last-child { border-bottom:none; }
-  .stat-row .label { color:var(--g700); }
-  .stat-row .value { font-weight:600; }
+  .stat-row .label { color:var(--g700); flex:1; min-width:0; }
+  .stat-row .label .sub { color:var(--g500); font-size:11px; }
+  .stat-row .value { font-weight:700; color:var(--g900); flex-shrink:0; margin-left:8px; }
+  .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .stat-card { background:var(--g50); border-radius:8px; padding:12px; text-align:center; }
+  .stat-card .sc-val { font-size:20px; font-weight:700; color:var(--g900); }
+  .stat-card .sc-label { font-size:11px; color:var(--g500); margin-top:2px; }
 
   /* Odoo settings */
   .odoo-setup { background:white; border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin-bottom:12px; }
@@ -248,45 +263,57 @@
 
   <!-- Summary -->
   <div class="summary" id="sum">
-    <div style="flex:1">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <div><div class="s-label">Total</div><div class="s-total" id="tot"></div></div>
-        <button class="btn-txt" onclick="clr()">Alle löschen</button>
+    <div class="s-top">
+      <div>
+        <div class="s-label">Total</div>
+        <div class="s-total" id="tot"></div>
+        <div class="s-count" id="totCount"></div>
       </div>
-      <div class="s-filtered" id="filtInfo"></div>
-      <div class="kat-breakdown" id="katBreakdown"></div>
+      <button class="btn-txt" onclick="clr()">Alle löschen</button>
     </div>
+    <div class="s-filtered" id="filtInfo"></div>
+    <div class="kat-breakdown" id="katBreakdown"></div>
   </div>
 
   <!-- Filter & Sort -->
   <div class="filter-bar" id="filterBar">
-    <div class="filter-row">
-      <span class="filter-label">Zeitraum</span>
-      <input type="month" id="fMonth" style="width:auto;">
-      <span class="filter-label" style="margin-left:4px;">Kategorie</span>
-      <select id="fKat">
-        <option value="all">Alle</option>
-        <option value="ÖV-Reise">🚂 ÖV-Reise</option>
-        <option value="Essen">🍽️ Essen</option>
-        <option value="Unterkunft">🏨 Unterkunft</option>
-        <option value="Material">📦 Material</option>
-        <option value="Sonstiges">📝 Sonstiges</option>
-      </select>
-      <span class="filter-label" style="margin-left:4px;">Status</span>
-      <select id="fArchive">
-        <option value="all">Alle</option>
-        <option value="open" selected>Offen</option>
-        <option value="archived">Archiviert</option>
-      </select>
-      <span class="filter-label" style="margin-left:4px;">Sortierung</span>
-      <select id="fSort">
-        <option value="manual">Manuell</option>
-        <option value="date-desc">Datum ↓</option>
-        <option value="date-asc">Datum ↑</option>
-        <option value="price-desc">Preis ↓</option>
-        <option value="price-asc">Preis ↑</option>
-        <option value="route">Route A-Z</option>
-      </select>
+    <div class="filter-grid">
+      <div class="filter-cell">
+        <label>Zeitraum</label>
+        <input type="month" id="fMonth">
+      </div>
+      <div class="filter-cell">
+        <label>Kategorie</label>
+        <select id="fKat">
+          <option value="all">Alle</option>
+          <option value="ÖV-Reise">🚂 ÖV-Reise</option>
+          <option value="Essen">🍽️ Essen</option>
+          <option value="Unterkunft">🏨 Unterkunft</option>
+          <option value="Material">📦 Material</option>
+          <option value="Sonstiges">📝 Sonstiges</option>
+        </select>
+      </div>
+      <div class="filter-cell">
+        <label>Status</label>
+        <select id="fArchive">
+          <option value="all">Alle</option>
+          <option value="open" selected>Offen</option>
+          <option value="archived">Exportiert</option>
+        </select>
+      </div>
+      <div class="filter-cell">
+        <label>Sortierung</label>
+        <select id="fSort">
+          <option value="manual">Manuell</option>
+          <option value="date-desc">Datum ↓</option>
+          <option value="date-asc">Datum ↑</option>
+          <option value="price-desc">Preis ↓</option>
+          <option value="price-asc">Preis ↑</option>
+          <option value="route">Route A-Z</option>
+        </select>
+      </div>
+    </div>
+    <div class="filter-actions">
       <button class="filter-reset" onclick="resetFilters()">Zurücksetzen</button>
     </div>
   </div>
@@ -536,19 +563,44 @@ function toggleStats() {
 
 function renderStats() {
   if (!trips.length) { document.getElementById('statsContent').innerHTML = ''; return; }
+  const total = trips.reduce((s,t)=>s+t.preis,0);
+  const avg = total / trips.length;
   let html = '';
+
+  // Key numbers
+  html += '<div class="stat-section"><div class="stat-grid">';
+  html += `<div class="stat-card"><div class="sc-val">${trips.length}</div><div class="sc-label">Spesen</div></div>`;
+  html += `<div class="stat-card"><div class="sc-val">CHF ${avg.toFixed(0)}</div><div class="sc-label">Durchschnitt</div></div>`;
+  html += `<div class="stat-card"><div class="sc-val">CHF ${Math.max(...trips.map(t=>t.preis)).toFixed(0)}</div><div class="sc-label">Teuerste</div></div>`;
+  html += `<div class="stat-card"><div class="sc-val">CHF ${Math.min(...trips.map(t=>t.preis)).toFixed(0)}</div><div class="sc-label">Günstigste</div></div>`;
+  html += '</div></div>';
+
+  // By Category
+  const kats = {};
+  trips.forEach(t => { const k = t.kategorie || 'ÖV-Reise'; if (!kats[k]) kats[k] = { count: 0, total: 0 }; kats[k].count++; kats[k].total += t.preis; });
+  const sortedKats = Object.entries(kats).sort((a,b) => b[1].total - a[1].total);
+  const maxKat = Math.max(...sortedKats.map(k => k[1].total));
+  html += '<div class="stat-section"><div class="stat-title">Nach Kategorie</div><div class="bar-chart">';
+  sortedKats.forEach(([k, d]) => {
+    const pct = Math.round(d.total / maxKat * 100);
+    const pctTotal = Math.round(d.total / total * 100);
+    html += `<div class="bar-row"><div class="bar-label">${KAT_ICONS[k]||'📝'} ${esc(k)}</div><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><div class="bar-val">CHF ${d.total.toFixed(0)}</div></div>`;
+  });
+  html += '</div><div class="stat-list" style="margin-top:8px">';
+  sortedKats.forEach(([k, d]) => {
+    const pctTotal = Math.round(d.total / total * 100);
+    html += `<div class="stat-row"><span class="label">${KAT_ICONS[k]||'📝'} ${esc(k)} <span class="sub">${d.count}× · ${pctTotal}%</span></span><span class="value">CHF ${d.total.toFixed(2)}</span></div>`;
+  });
+  html += '</div></div>';
 
   // Monthly spending
   const months = {};
-  trips.forEach(t => {
-    const m = t.datum ? t.datum.slice(0, 7) : 'Ohne Datum';
-    months[m] = (months[m] || 0) + t.preis;
-  });
+  trips.forEach(t => { const m = t.datum ? t.datum.slice(0, 7) : 'k.A.'; months[m] = (months[m] || 0) + t.preis; });
   const sortedMonths = Object.entries(months).sort((a,b) => a[0].localeCompare(b[0]));
   const maxMonth = Math.max(...sortedMonths.map(m => m[1]));
   html += '<div class="stat-section"><div class="stat-title">Ausgaben pro Monat</div><div class="bar-chart">';
   sortedMonths.forEach(([m, v]) => {
-    const label = m === 'Ohne Datum' ? 'k.A.' : m.slice(2).replace('-', '/');
+    const label = m === 'k.A.' ? 'k.A.' : m.slice(2).replace('-', '/');
     const pct = Math.round(v / maxMonth * 100);
     html += `<div class="bar-row"><div class="bar-label">${label}</div><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><div class="bar-val">CHF ${v.toFixed(0)}</div></div>`;
   });
@@ -556,40 +608,30 @@ function renderStats() {
 
   // By Betreff
   const betreffs = {};
-  trips.forEach(t => {
-    const b = t.betreff || 'Ohne Betreff';
-    betreffs[b] = (betreffs[b] || 0) + t.preis;
-  });
+  trips.forEach(t => { const b = t.betreff || 'Ohne Betreff'; betreffs[b] = (betreffs[b] || 0) + t.preis; });
   const sortedBet = Object.entries(betreffs).sort((a,b) => b[1] - a[1]);
   if (sortedBet.length > 1 || sortedBet[0]?.[0] !== 'Ohne Betreff') {
     html += '<div class="stat-section"><div class="stat-title">Nach Betreff</div><div class="stat-list">';
     sortedBet.forEach(([b, v]) => {
-      html += `<div class="stat-row"><span class="label">${esc(b)}</span><span class="value">CHF ${v.toFixed(2)}</span></div>`;
+      const pct = Math.round(v / total * 100);
+      html += `<div class="stat-row"><span class="label">${esc(b)} <span class="sub">${pct}%</span></span><span class="value">CHF ${v.toFixed(2)}</span></div>`;
     });
     html += '</div></div>';
   }
 
-  // Top routes
+  // Top routes / entries
   const routes = {};
   trips.forEach(t => {
-    const r = t.von + ' → ' + t.nach;
+    const r = tripLabel(t);
     if (!routes[r]) routes[r] = { count: 0, total: 0 };
     routes[r].count++; routes[r].total += t.preis;
   });
   const topRoutes = Object.entries(routes).sort((a,b) => b[1].count - a[1].count).slice(0, 5);
-  html += '<div class="stat-section"><div class="stat-title">Häufigste Strecken</div><div class="stat-list">';
+  html += '<div class="stat-section"><div class="stat-title">Häufigste Einträge</div><div class="stat-list">';
   topRoutes.forEach(([r, d]) => {
-    html += `<div class="stat-row"><span class="label">${esc(r)} <span style="color:var(--g500)">(${d.count}×)</span></span><span class="value">CHF ${d.total.toFixed(2)}</span></div>`;
+    html += `<div class="stat-row"><span class="label">${esc(r)} <span class="sub">${d.count}×</span></span><span class="value">CHF ${d.total.toFixed(2)}</span></div>`;
   });
   html += '</div></div>';
-
-  // Summary numbers
-  const avg = trips.reduce((s,t)=>s+t.preis,0) / trips.length;
-  html += `<div class="stat-section"><div class="stat-title">Übersicht</div><div class="stat-list">`;
-  html += `<div class="stat-row"><span class="label">Anzahl Fahrten</span><span class="value">${trips.length}</span></div>`;
-  html += `<div class="stat-row"><span class="label">Durchschnittspreis</span><span class="value">CHF ${avg.toFixed(2)}</span></div>`;
-  html += `<div class="stat-row"><span class="label">Teuerste Fahrt</span><span class="value">CHF ${Math.max(...trips.map(t=>t.preis)).toFixed(2)}</span></div>`;
-  html += `</div></div>`;
 
   document.getElementById('statsContent').innerHTML = html;
 }
@@ -638,7 +680,8 @@ function render() {
   const tot=filtered.reduce((a,t)=>a+t.preis,0),n=filtered.length;
   const archivedCount=trips.filter(t=>t.archived).length, openCount=trips.length-archivedCount;
   s.classList.add('show');
-  document.getElementById('tot').innerHTML='CHF '+tot.toFixed(2)+'<span class="s-count">'+n+(n===1?' Spese':' Spesen')+'</span>';
+  document.getElementById('tot').textContent='CHF '+tot.toFixed(2);
+  document.getElementById('totCount').textContent=n+(n===1?' Spese':' Spesen');
   const infoparts=[];
   if(isFiltered) infoparts.push('Gefiltert ('+trips.length+' total: CHF '+trips.reduce((a,t)=>a+t.preis,0).toFixed(2)+')');
   if(archivedCount>0) infoparts.push(openCount+' offen, '+archivedCount+' exportiert');
@@ -647,11 +690,18 @@ function render() {
   // Category breakdown
   const katTotals={};
   filtered.forEach(t=>{const k=t.kategorie||'ÖV-Reise';if(!katTotals[k])katTotals[k]={count:0,total:0};katTotals[k].count++;katTotals[k].total+=t.preis});
-  const katKeys=Object.keys(katTotals);
+  const katKeys=Object.keys(katTotals).sort((a,b)=>katTotals[b].total-katTotals[a].total);
   const kb=document.getElementById('katBreakdown');
-  if(katKeys.length>1){
-    kb.style.display='flex';
-    kb.innerHTML=katKeys.map(k=>`<div class="kat-chip">${KAT_ICONS[k]||'📝'} ${esc(k)} <span class="kat-amount">CHF ${katTotals[k].total.toFixed(2)}</span> <span style="color:var(--g500)">(${katTotals[k].count})</span></div>`).join('');
+  if(katKeys.length>=1 && n>0){
+    const maxKat=Math.max(...katKeys.map(k=>katTotals[k].total));
+    kb.style.display='grid';
+    kb.innerHTML=katKeys.map(k=>{
+      const pct=Math.round(katTotals[k].total/tot*100);
+      return `<div class="kat-row">
+        <div class="kat-left"><span class="kat-icon">${KAT_ICONS[k]||'📝'}</span><span class="kat-name">${esc(k)}</span><span class="kat-count">${katTotals[k].count}× · ${pct}%</span></div>
+        <div class="kat-right">CHF ${katTotals[k].total.toFixed(2)}</div>
+      </div>`;
+    }).join('');
   } else { kb.style.display='none'; }
 
   l.innerHTML = filtered.map((t, i) => {
