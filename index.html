@@ -851,7 +851,7 @@ function render() {
     kb.innerHTML=katKeys.map(k=>{
       const pct=Math.round(katTotals[k].total/tot*100);
       return `<div class="kat-row">
-        <div class="kat-left"><span class="kat-icon">${KAT_ICONS[k]||'📝'}</span><span class="kat-name">${esc(k)}</span><span class="kat-count">${katTotals[k].count}× · ${pct}%</span></div>
+        <div class="kat-left">${katBadge(k)}<span class="kat-count">${katTotals[k].count}× · ${pct}%</span></div>
         <div class="kat-right">CHF ${katTotals[k].total.toFixed(2)}</div>
       </div>`;
     }).join('');
