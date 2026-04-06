@@ -1,5 +1,5 @@
-const CACHE = 'spesen-v2';
-const ASSETS = ['./', './index.html', './manifest.json'];
+const CACHE = 'spesen-v3';
+const ASSETS = ['./', './index.html', './manifest.json', './logo.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));

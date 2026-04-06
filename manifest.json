@@ -1,11 +1,11 @@
 {
   "name": "Spesen-Tracker",
   "short_name": "Spesen",
-  "description": "Spesen erfassen, Belege anhängen, nach Odoo exportieren",
+  "description": "Spesen erfassen, Belege anhängen, exportieren",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#f8f9fa",
-  "theme_color": "#1e293b",
+  "theme_color": "#1050a0",
   "orientation": "portrait",
   "icons": [
     {
