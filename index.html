@@ -360,7 +360,7 @@
 
   <!-- Export -->
   <div class="export" id="exp">
-    <button onclick="xlsx()">📊 Excel</button>
+    <button onclick="xlsx()" style="min-width:100%;font-weight:600;background:var(--brand-light);color:var(--brand);border-color:var(--brand)">📊 Excel Export</button>
     <button onclick="csv()">📄 CSV</button>
     <button onclick="jsn()">📋 JSON</button>
     <button class="btn-odoo-all" id="btnOdoo" onclick="sendAllToOdoo()">✉️ Alle Fahrten an Odoo senden</button>
@@ -954,9 +954,10 @@ function msg(t,type='info'){const el=document.createElement('div');el.className=
 // Export
 // ══════════════════════════════════════════
 function csv(){
-  const r=['Kategorie,Bezeichnung,Preis,Datum,Klasse,Betreff,Belege'];
-  trips.forEach(t=>{const fn=(t.files||[]).map(f=>f.name).join('; ');r.push(`"${t.kategorie||'ÖV-Reise'}","${tripLabel(t)}",${t.preis.toFixed(2)},${t.datum||''},${t.klasse||''},"${t.betreff||''}","${fn}"`)});
-  r.push(`"","TOTAL",${trips.reduce((s,t)=>s+t.preis,0).toFixed(2)},,,,`);
+  const data = getFiltered().length ? getFiltered() : trips;
+  const r=['Nr.,Kategorie,Von,Nach,Beschreibung,Preis (CHF),Datum,Klasse,Betreff,Status,Belege'];
+  data.forEach((t,i)=>{const fn=(t.files||[]).map(f=>f.name).join('; ');r.push(`${i+1},"${t.kategorie||'ÖV-Reise'}","${t.von||''}","${t.nach||''}","${t.beschreibung||''}",${t.preis.toFixed(2)},${t.datum||''},${t.klasse||''},"${t.betreff||''}",${t.archived?'Exportiert':'Offen'},"${fn}"`)});
+  r.push(`,,,,TOTAL,${data.reduce((s,t)=>s+t.preis,0).toFixed(2)},,,,,`);
   dlFile('spesen.csv','text/csv',r.join('\n'));
 }
 function jsn(){const tot=trips.reduce((s,t)=>s+t.preis,0);dlFile('spesen.json','application/json',JSON.stringify({spesen:trips,total:Math.round(tot*100)/100,anzahl:trips.length},null,2))}
@@ -968,14 +969,146 @@ function dlFile(n,t,c){
 }
 
 function xlsx(){
-  const rows=[['Kategorie','Bezeichnung','Preis','Datum','Klasse','Betreff','Belege']];
-  trips.forEach(t=>{rows.push([t.kategorie||'ÖV-Reise',tripLabel(t),t.preis,t.datum||'',t.klasse||'',t.betreff||'',(t.files||[]).map(f=>f.name).join('; ')])});
-  rows.push(['','TOTAL',trips.reduce((s,t)=>s+t.preis,0),'','','','']);
-  const ws=XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols']=[{wch:12},{wch:25},{wch:10},{wch:12},{wch:10},{wch:20},{wch:30}];
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'Spesen');
-  XLSX.writeFile(wb,'spesen.xlsx');
+  const filtered = getFiltered();
+  const data = filtered.length ? filtered : trips;
+  if (!data.length) { msg('Keine Spesen zum Exportieren.','error'); return; }
+
+  // ── Sheet 1: Spesenliste ──
+  const headers = ['Nr.','Kategorie','Von','Nach','Beschreibung','Preis (CHF)','Datum','Klasse','Betreff','Status','Belege'];
+  const rows = [headers];
+  
+  data.forEach((t, i) => {
+    rows.push([
+      i + 1,
+      t.kategorie || 'ÖV-Reise',
+      t.von || '',
+      t.nach || '',
+      t.beschreibung || '',
+      t.preis,
+      t.datum || '',
+      t.klasse || '',
+      t.betreff || '',
+      t.archived ? 'Exportiert' : 'Offen',
+      (t.files || []).map(f => f.name).join('; ')
+    ]);
+  });
+
+  // Total row
+  const totalRow = data.reduce((s, t) => s + t.preis, 0);
+  rows.push([]);
+  rows.push(['', '', '', '', 'TOTAL', totalRow, '', '', '', '', '']);
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+
+  // Column widths
+  ws['!cols'] = [
+    { wch: 5 },   // Nr
+    { wch: 14 },  // Kategorie
+    { wch: 18 },  // Von
+    { wch: 18 },  // Nach
+    { wch: 25 },  // Beschreibung
+    { wch: 12 },  // Preis
+    { wch: 12 },  // Datum
+    { wch: 10 },  // Klasse
+    { wch: 18 },  // Betreff
+    { wch: 10 },  // Status
+    { wch: 30 },  // Belege
+  ];
+
+  // Format price column as number with 2 decimals
+  for (let r = 1; r <= data.length; r++) {
+    const cell = XLSX.utils.encode_cell({ r, c: 5 });
+    if (ws[cell]) ws[cell].t = 'n'; ws[cell].z = '#,##0.00';
+  }
+  // Total cell
+  const totalCell = XLSX.utils.encode_cell({ r: data.length + 2, c: 5 });
+  if (ws[totalCell]) { ws[totalCell].t = 'n'; ws[totalCell].z = '#,##0.00'; }
+
+  // Format date column
+  for (let r = 1; r <= data.length; r++) {
+    const cell = XLSX.utils.encode_cell({ r, c: 6 });
+    if (ws[cell] && ws[cell].v) {
+      const d = new Date(ws[cell].v + 'T00:00:00');
+      if (!isNaN(d)) {
+        ws[cell].t = 'd';
+        ws[cell].v = d;
+        ws[cell].z = 'dd.mm.yyyy';
+      }
+    }
+  }
+
+  // ── Sheet 2: Zusammenfassung ──
+  const sumRows = [['Spesen-Zusammenfassung'], []];
+  
+  // Key metrics
+  const avg = totalRow / data.length;
+  sumRows.push(['Anzahl Spesen', data.length]);
+  sumRows.push(['Gesamtbetrag', totalRow]);
+  sumRows.push(['Durchschnitt', Math.round(avg * 100) / 100]);
+  sumRows.push(['Teuerste Spese', Math.max(...data.map(t => t.preis))]);
+  sumRows.push(['Günstigste Spese', Math.min(...data.map(t => t.preis))]);
+  sumRows.push([]);
+
+  // By category
+  sumRows.push(['Nach Kategorie', '', '']);
+  sumRows.push(['Kategorie', 'Anzahl', 'Betrag (CHF)']);
+  const kats = {};
+  data.forEach(t => { const k = t.kategorie || 'ÖV-Reise'; if (!kats[k]) kats[k] = { count: 0, total: 0 }; kats[k].count++; kats[k].total += t.preis; });
+  Object.entries(kats).sort((a, b) => b[1].total - a[1].total).forEach(([k, d]) => {
+    sumRows.push([k, d.count, d.total]);
+  });
+  sumRows.push([]);
+
+  // By betreff
+  const bets = {};
+  data.forEach(t => { const b = t.betreff || 'Ohne Betreff'; bets[b] = (bets[b] || 0) + t.preis; });
+  const sortedBets = Object.entries(bets).sort((a, b) => b[1] - a[1]);
+  if (sortedBets.length > 1 || sortedBets[0]?.[0] !== 'Ohne Betreff') {
+    sumRows.push(['Nach Betreff', '', '']);
+    sumRows.push(['Betreff', '', 'Betrag (CHF)']);
+    sortedBets.forEach(([b, v]) => { sumRows.push([b, '', v]); });
+    sumRows.push([]);
+  }
+
+  // By month
+  const months = {};
+  data.forEach(t => { const m = t.datum ? t.datum.slice(0, 7) : 'Ohne Datum'; months[m] = (months[m] || 0) + t.preis; });
+  sumRows.push(['Nach Monat', '', '']);
+  sumRows.push(['Monat', '', 'Betrag (CHF)']);
+  Object.entries(months).sort((a, b) => a[0].localeCompare(b[0])).forEach(([m, v]) => {
+    sumRows.push([m, '', v]);
+  });
+
+  const ws2 = XLSX.utils.aoa_to_sheet(sumRows);
+  ws2['!cols'] = [{ wch: 22 }, { wch: 10 }, { wch: 14 }];
+
+  // Format numbers on sheet 2
+  for (let r = 0; r < sumRows.length; r++) {
+    for (let c = 1; c <= 2; c++) {
+      const cell = XLSX.utils.encode_cell({ r, c });
+      if (ws2[cell] && typeof ws2[cell].v === 'number') {
+        ws2[cell].z = c === 1 && Number.isInteger(ws2[cell].v) ? '0' : '#,##0.00';
+      }
+    }
+  }
+
+  // ── Build workbook ──
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Spesen');
+  XLSX.utils.book_append_sheet(wb, ws2, 'Zusammenfassung');
+
+  // Filename with date range
+  const dates = data.filter(t => t.datum).map(t => t.datum).sort();
+  let filename = 'Spesen';
+  if (dates.length) {
+    const from = dates[0].slice(0, 7).replace('-', '');
+    const to = dates[dates.length - 1].slice(0, 7).replace('-', '');
+    filename += '_' + from + (from !== to ? '-' + to : '');
+  }
+  filename += '.xlsx';
+
+  XLSX.writeFile(wb, filename);
+  msg('Excel exportiert: ' + filename, 'success');
 }
 
 // ══════════════════════════════════════════
