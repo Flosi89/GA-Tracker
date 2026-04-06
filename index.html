@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#1e293b">
+<meta name="theme-color" content="#1050a0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Spesen">
@@ -14,11 +14,12 @@
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --red: #eb0000; --red-dark: #c50000; --red-light: #fff1f1;
-    --green: #2e7d32; --green-light: #e8f5e9;
-    --blue: #1565c0; --blue-light: #e3f2fd;
-    --brand: #0f766e; --brand-dark: #0d6560; --brand-light: #f0fdfa;
-    --header: #1e293b; --header-sub: #94a3b8;
+    --red: #dc2626; --red-dark: #b91c1c; --red-light: #fef2f2;
+    --green: #40c040; --green-light: #eafaea;
+    --blue: #1050a0; --blue-light: #e6eef8;
+    --brand: #1050a0; --brand-dark: #0c3d7a; --brand-light: #e6eef8;
+    --accent: #40c040; --accent-light: #eafaea;
+    --header: #1050a0; --header-sub: #7eaadb;
     --g50: #f8f9fa; --g200: #e9ecef; --g300: #dee2e6;
     --g400: #ced4da; --g500: #adb5bd; --g600: #868e96; --g700: #495057; --g900: #212529;
     --radius: 12px; --shadow: 0 1px 3px rgba(0,0,0,0.06);
@@ -45,7 +46,7 @@
   .pv-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
   .pv-grid input, .pv-grid select { padding:9px 10px; border:1px solid var(--g300); border-radius:8px; font-size:13px; font-family:inherit; background:white; outline:none; width:100%; }
   .pv-grid input:focus, .pv-grid select:focus { border-color:var(--brand); }
-  .btn-sbb { flex:1; text-align:center; background:var(--red); color:white; text-decoration:none; font-size:13px; padding:10px; border-radius:8px; }
+  .btn-sbb { flex:1; text-align:center; background:var(--g700); color:white; text-decoration:none; font-size:13px; padding:10px; border-radius:8px; }
   .card-label { font-size: 13px; font-weight: 600; color: var(--g700); margin-bottom: 8px; }
   .url-row { display: flex; gap: 8px; }
   .btn-paste { padding:11px; border:1px solid var(--g300); border-radius:8px; background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--g600); transition:all 0.15s; }
@@ -59,7 +60,7 @@
   .btn:active { transform: scale(0.97); }
   .btn-red { background: var(--brand); color: white; }
   .btn-red:hover { background: var(--brand-dark); }
-  .btn-green { background: var(--green); color: white; }
+  .btn-green { background: var(--accent); color: white; }
   .preview { background:var(--g50); border:1px solid var(--g200); border-radius:10px; padding:14px; margin-top:12px; display:none; }
   .preview.show { display: block; }
   .preview-route { font-size:17px; font-weight:700; }
@@ -67,7 +68,7 @@
   .preview-meta { font-size:13px; color:var(--g600); margin-top:4px; }
   .msg { padding:12px 16px; border-radius:var(--radius); margin-bottom:12px; font-size:13px; line-height:1.5; }
   .msg-error { background:var(--red-light); border:1px solid #ffcdd2; color:#c62828; }
-  .msg-success { background:var(--green-light); border:1px solid #a5d6a7; color:var(--green); }
+  .msg-success { background:var(--accent-light); border:1px solid var(--accent); color:#1a7a1e; }
   .form-input { padding:10px 12px; border:1px solid var(--g300); border-radius:8px; font-size:14px; font-family:inherit; outline:none; width:100%; }
   .form-input:focus { border-color: var(--brand); }
 
@@ -116,7 +117,7 @@
   .bar-row { display:grid; grid-template-columns:auto 1fr 70px; align-items:center; gap:8px; }
   .bar-label { text-align:right; color:var(--g600); font-size:12px; font-weight:500; min-width:40px; white-space:nowrap; }
   .bar-track { height:24px; background:var(--g200); border-radius:6px; overflow:hidden; }
-  .bar-fill { height:100%; background:linear-gradient(90deg, var(--brand), #2dd4bf); border-radius:6px; transition:width 0.3s ease; min-width:3px; }
+  .bar-fill { height:100%; background:linear-gradient(90deg, var(--brand), var(--accent)); border-radius:6px; transition:width 0.3s ease; min-width:3px; }
   .bar-val { font-weight:700; color:var(--g900); font-size:13px; }
   .stat-list { display:flex; flex-direction:column; }
   .stat-row { display:flex; justify-content:space-between; align-items:center; font-size:13px; padding:8px 0; border-bottom:1px solid var(--g200); }
@@ -142,12 +143,12 @@
   .btn-odoo:hover { color:#7c3aed; background:#f3e8ff; }
   .btn-odoo svg { width:15px; height:15px; }
   .btn-archive { background:none; border:none; color:var(--g400); cursor:pointer; padding:5px; border-radius:6px; display:flex; }
-  .btn-archive:hover { color:var(--green); background:var(--green-light); }
-  .btn-archive.is-archived { color:var(--green); }
+  .btn-archive:hover { color:var(--accent); background:var(--accent-light); }
+  .btn-archive.is-archived { color:var(--accent); }
   .btn-archive svg { width:15px; height:15px; }
   .trip-card.archived { opacity:0.55; }
   .trip-card.archived .trip-main { background:var(--g50); }
-  .t-archived-badge { display:inline-block; font-size:10px; background:var(--green-light); color:var(--green); padding:2px 6px; border-radius:4px; font-weight:600; margin-left:6px; vertical-align:middle; }
+  .t-archived-badge { display:inline-block; font-size:10px; background:var(--accent-light); color:var(--accent); padding:2px 6px; border-radius:4px; font-weight:600; margin-left:6px; vertical-align:middle; }
   .btn-odoo-all { width:100%; padding:10px; border:1px solid #7c3aed; background:#f3e8ff; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; color:#7c3aed; margin-top:4px; }
   .btn-odoo-all:hover { background:#ede4ff; }
   .btn-odoo-all:disabled { opacity:0.5; cursor:wait; }
@@ -182,7 +183,7 @@
   .edit-grid input:focus,.edit-grid select:focus { border-color:var(--brand); }
   .edit-actions { display:flex; gap:8px; }
   .edit-actions button { padding:8px 14px; border:none; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; }
-  .edit-save { background:var(--green); color:white; flex:1; }
+  .edit-save { background:var(--accent); color:white; flex:1; }
   .edit-cancel { background:none; color:var(--g600); border:1px solid var(--g300) !important; }
   .attach-bar { display:flex; align-items:center; gap:8px; padding:8px 16px; border-top:1px solid var(--g200); background:var(--g50); flex-wrap:wrap; }
   .btn-attach { display:inline-flex; align-items:center; gap:4px; background:none; border:1px dashed var(--g300); border-radius:6px; padding:5px 10px; font-size:12px; color:var(--g600); cursor:pointer; font-family:inherit; position:relative; overflow:hidden; flex-shrink:0; }
@@ -211,8 +212,13 @@
 </head>
 <body>
 <div class="header"><div class="header-inner">
-  <h1>Spesen-Tracker</h1>
-  <p>Erfassen, Belege, Export</p>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <img src="logo.png" alt="" style="width:36px;height:36px;border-radius:8px;">
+    <div>
+      <h1>Spesen-Tracker</h1>
+      <p>Erfassen, Belege, Export</p>
+    </div>
+  </div>
 </div></div>
 <div class="container">
   <!-- Unified input card -->
@@ -494,12 +500,12 @@ async function generateReceipt(trip, sbbUrl) {
   ctx.fill();
 
   // Header bar
-  ctx.fillStyle = '#eb0000';
+  ctx.fillStyle = '#1050a0';
   ctx.roundRect(0, 0, 800, 80, [16, 16, 0, 0]);
   ctx.fill();
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 28px -apple-system, sans-serif';
-  ctx.fillText('SBB Reisebeleg', 32, 52);
+  ctx.fillText('ÖV-Reisebeleg', 32, 52);
 
   // Date top right
   ctx.font = '18px -apple-system, sans-serif';
@@ -510,7 +516,7 @@ async function generateReceipt(trip, sbbUrl) {
   ctx.textAlign = 'left';
 
   // Route
-  ctx.fillStyle = '#1e293b';
+  ctx.fillStyle = '#1050a0';
   ctx.font = 'bold 32px -apple-system, sans-serif';
   ctx.fillText(trip.von + '  →  ' + trip.nach, 32, 140);
 
@@ -529,7 +535,7 @@ async function generateReceipt(trip, sbbUrl) {
     ctx.fillStyle = '#94a3b8';
     ctx.font = '15px -apple-system, sans-serif';
     ctx.fillText(label, 32, y);
-    ctx.fillStyle = '#1e293b';
+    ctx.fillStyle = '#1a1a2e';
     ctx.font = '18px -apple-system, sans-serif';
     ctx.fillText(value, 180, y);
     y += 36;
@@ -543,10 +549,10 @@ async function generateReceipt(trip, sbbUrl) {
   y += 25;
 
   // Price highlight
-  ctx.fillStyle = '#f0fdfa';
+  ctx.fillStyle = '#eafaea';
   ctx.roundRect(32, y, 736, 60, 10);
   ctx.fill();
-  ctx.fillStyle = '#0f766e';
+  ctx.fillStyle = '#40c040';
   ctx.font = 'bold 28px -apple-system, sans-serif';
   ctx.fillText('CHF ' + trip.preis.toFixed(2), 52, y + 40);
 
