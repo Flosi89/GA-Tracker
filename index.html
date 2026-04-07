@@ -998,8 +998,8 @@ function toggleExpand(id){
   el.classList.toggle('show');
 }
 function toggleArchive(id){const t=trips.find(x=>x.id===id);if(!t)return;t.archived=!t.archived;save();msg(tripLabel(t)+(t.archived?' archiviert.':' geöffnet.'),'success')}
-function startEdit(id){document.getElementById('tv-'+id).style.display='none';document.getElementById('ab-'+id).style.display='none';document.getElementById('ef-'+id).style.display='block'}
-function cancelEdit(id){document.getElementById('tv-'+id).style.display='';document.getElementById('ab-'+id).style.display='';document.getElementById('ef-'+id).style.display='none';render()}
+function startEdit(id){document.getElementById('tv-'+id).style.display='none';const ax=document.getElementById('ax-'+id);if(ax)ax.classList.remove('show');document.getElementById('ef-'+id).style.display='block'}
+function cancelEdit(id){document.getElementById('tv-'+id).style.display='';document.getElementById('ef-'+id).style.display='none'}
 function saveEdit(id){
   const t=trips.find(x=>x.id===id);if(!t)return;
   const kat=document.getElementById('ekat-'+id).value;
