@@ -424,17 +424,16 @@ const ST={'8505000':'Luzern','8503000':'Zürich HB','8507000':'Bern','8500010':'
 let trips = JSON.parse(localStorage.getItem('sbb-t') || '[]');
 trips.forEach(t => { if (!t.files) t.files = []; if (!t.betreff) t.betreff = ''; if (!t.kategorie) t.kategorie = 'ÖV-Reise'; if (!t.beschreibung) t.beschreibung = ''; if (t.archived===undefined) t.archived = false; if (t.retour===undefined) t.retour = false; });
 
-// Auto-merge retour pairs (one-time migration)
-if (!localStorage.getItem('retour-merged')) {
+// Auto-merge retour pairs
+(function mergeRetour(){
   const toRemove = new Set();
   for (let i = 0; i < trips.length; i++) {
-    if (toRemove.has(trips[i].id) || !trips[i].von || !trips[i].nach) continue;
+    if (toRemove.has(trips[i].id) || !trips[i].von || !trips[i].nach || trips[i].retour) continue;
     for (let j = i + 1; j < trips.length; j++) {
-      if (toRemove.has(trips[j].id)) continue;
+      if (toRemove.has(trips[j].id) || trips[j].retour) continue;
       if (trips[j].von === trips[i].nach && trips[j].nach === trips[i].von
           && trips[j].datum === trips[i].datum && trips[j].preis === trips[i].preis
           && trips[j].betreff === trips[i].betreff && trips[j].kategorie === trips[i].kategorie) {
-        // Merge: double the price, mark as retour, merge files
         trips[i].retour = true;
         trips[i].preis = trips[i].preis * 2;
         trips[i].files = [...trips[i].files, ...(trips[j].files||[])];
@@ -447,10 +446,8 @@ if (!localStorage.getItem('retour-merged')) {
   if (toRemove.size > 0) {
     trips = trips.filter(t => !toRemove.has(t.id));
     localStorage.setItem('sbb-trips', JSON.stringify(trips));
-    console.log('Merged ' + toRemove.size + ' retour pairs');
   }
-  localStorage.setItem('retour-merged', '1');
-}
+})();
 let pend = null;
 let statsVisible = false;
 let filtersVisible = false;
