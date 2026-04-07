@@ -1,49 +1,84 @@
-# SBB Fahrten-Tracker 🚂
+# Spesen-Tracker
 
-PWA zum Erfassen von SBB-Fahrten. Link einfügen, Preis ergänzen, Belege anhängen.
+Web-App zur Erfassung und Verwaltung von Geschäftsspesen. Läuft als PWA direkt im Browser, keine Installation nötig.
 
 ## Features
 
-- **URL-Parsing:** Beide SBB-Link-Formate (`?stops=...` und `?tripId=...`)
-- **Auto-Paste:** Ein Tap liest den SBB-Link aus der Zwischenablage und parst ihn
-- **Share Target:** Direkt aus der SBB App teilen → landet im Tracker
-- **Einfach/Retour:** Automatische Rückfahrt-Erstellung
-- **Betreff:** Jede Fahrt kann einem Anlass zugeordnet werden
-- **Belege:** Screenshots und PDFs pro Fahrt anhängen (IndexedDB)
-- **Bearbeiten:** Alle Felder nachträglich änderbar
-- **Reihenfolge:** Fahrten per Pfeil-Buttons verschieben
-- **Zeitraumfilter:** Fahrten nach Monat filtern
-- **Sortierung:** Nach Datum, Preis oder Route
-- **Statistik:** Ausgaben pro Monat (Balkendiagramm), nach Betreff, häufigste Strecken
-- **Export:** Excel (.xlsx), CSV, JSON, ZIP mit allen Belegen
-- **PWA:** Installierbar, Offline-fähig, App-Icon auf Homescreen
+### Erfassung
+- **SBB-Link Import:** Verbindungslink aus der SBB-App einfügen, Route und Datum werden automatisch erkannt
+- **Manuelle Erfassung:** Für alle Spesenkategorien (ÖV-Reise, Essen, Unterkunft, Material, Sonstiges)
+- **Retour-Fahrten:** Werden als ein Eintrag mit Gesamtpreis (×2) zusammengefasst
+- **Betreff:** Optionale Zuordnung zu Projekten oder Anlässen
 
-## Setup (GitHub Pages)
+### Belege
+- **Datei anhängen:** Screenshots, PDFs aus der Galerie
+- **Foto aufnehmen:** Kamera direkt öffnen zum Abfotografieren (z.B. Essensbelege)
+- **Beleg-Indikator:** Jede Karte zeigt auf einen Blick ob ein Beleg vorhanden ist oder fehlt
+- **Lightbox-Vorschau:** Belege direkt in der App ansehen
 
-1. Repo erstellen
-2. Alle Dateien hochladen: `index.html`, `manifest.json`, `sw.js`, `icon-192.png`, `icon-512.png`, `README.md`
-3. Settings → Pages → Source: `main` → Save
-4. Seite öffnen → Chrome Menü → "Zum Startbildschirm hinzufügen"
+### Verwaltung
+- **Archivierung:** Spesen als exportiert markieren (manuell oder automatisch nach dem Senden)
+- **Filter:** Nach Zeitraum, Kategorie, Status (Offen/Exportiert) und Sortierung
+- **Bearbeiten:** Alle Felder inline editierbar
+- **Reihenfolge:** Einträge manuell verschieben
 
-## Share Target einrichten
+### Statistik
+- **Offen-KPI:** Betrag und Anzahl der noch abzurechnenden Spesen
+- **GA-Vergleich:** ÖV-Ausgaben vs. GA-Preis (CHF 3'995) mit Fortschrittsbalken
+- **Nach Kategorie:** Balkendiagramm und Detailliste
+- **Nach Monat:** Ausgabenentwicklung über die Zeit
+- **Nach Betreff:** Projektbezogene Kostenübersicht
 
-1. App als PWA installieren (Schritt 4 oben)
-2. In der SBB App eine Verbindung suchen
-3. "Teilen" → "SBB Tracker" wählen
-4. Link wird automatisch eingelesen, nur noch Preis ergänzen
+### Export
+- **Excel (.xlsx):** Zwei Sheets (Detailliste + Zusammenfassung mit GA-Vergleich)
+- **CSV:** UTF-8 mit korrekten Umlauten
+- **JSON:** Maschinenlesbarer Export
+- **ZIP:** Alle Belege gebündelt mit Übersichts-CSV
+
+### Odoo-Integration
+- **Einzelversand:** Spese mit Beleg per Teilen-Dialog senden
+- **Sammelversand:** Alle gefilterten Spesen als ZIP gebündelt senden
+- **Konfigurierbar:** Empfänger-Alias, Referenz-Code, Absender-Email
+
+## Technologie
+
+- Vanilla HTML/CSS/JS, keine Frameworks
+- PWA mit Service Worker für Offline-Nutzung
+- IndexedDB für Beleg-Speicherung (bis 20MB/Datei)
+- localStorage für Spesen-Daten
+- SheetJS (CDN) für Excel-Export
+- JSZip (CDN) für ZIP-Export
 
 ## Dateien
 
-| Datei | Zweck |
+| Datei | Beschreibung |
 |---|---|
-| `index.html` | Die komplette App |
-| `manifest.json` | PWA-Konfiguration + Share Target |
-| `sw.js` | Service Worker (Offline + Caching) |
-| `icon-192.png` | App-Icon 192×192 |
-| `icon-512.png` | App-Icon 512×512 |
+| `index.html` | Komplette App (Single-File) |
+| `manifest.json` | PWA-Manifest mit Share Target |
+| `sw.js` | Service Worker (Cache: spesen-v3) |
+| `logo.png` | Sozialinfo-Logo |
+| `icon-192.png` | PWA-Icon 192x192 |
+| `icon-512.png` | PWA-Icon 512x512 |
 
-## Speicherung
+## Setup
 
-- Fahrten: localStorage
-- Belege: IndexedDB
-- Alles lokal im Browser, kein Server
+1. Alle Dateien in ein GitHub-Repository laden
+2. GitHub Pages aktivieren (Settings → Pages → Branch: main)
+3. App öffnen unter `https://<username>.github.io/<repo>/`
+4. Optional: Custom Domain einrichten (z.B. `spesen.sozialinfo.ch`)
+
+## Nutzung
+
+**ÖV-Spese via SBB-Link:**
+1. In der SBB-App: Verbindung → Teilen → Link kopieren
+2. Im Spesen-Tracker: Einfügen → Lesen → Preis eingeben → Hinzufügen
+3. SBB öffnen → Screenshot machen → Beleg anhängen
+
+**Manuelle Spese:**
+1. Tab "Manuell" → Kategorie wählen → Felder ausfüllen → Hinzufügen
+2. Beleg per Foto oder Datei anhängen
+
+**Abrechnung:**
+1. Filter auf "Offen" (Standard)
+2. Excel Export oder einzeln/gesammelt an Odoo senden
+3. Gesendete Spesen werden automatisch archiviert
