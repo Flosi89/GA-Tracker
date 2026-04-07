@@ -183,9 +183,9 @@
   .empty { text-align:center; color:var(--g400); font-size:13px; padding:36px 0; }
   .t-expand-actions .btn-act { padding:8px 12px; font-size:11px; gap:4px; color:var(--g600); }
   .t-expand-actions .btn-act span { font-size:11px; }
-  .edit-form { padding:12px 16px; border-top:1px solid var(--g200); background:var(--g50); }
-  .edit-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
-  .edit-grid input,.edit-grid select { padding:8px 10px; border:1px solid var(--g300); border-radius:6px; font-size:13px; font-family:inherit; outline:none; width:100%; }
+  .edit-form { padding:16px; border-top:1px solid var(--g200); background:var(--g50); }
+  .edit-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  .edit-grid input,.edit-grid select { padding:9px 10px; border:1px solid var(--g300); border-radius:8px; font-size:13px; font-family:inherit; outline:none; width:100%; }
   .edit-grid input:focus,.edit-grid select:focus { border-color:var(--brand); }
   .edit-actions { display:flex; gap:8px; }
   .edit-actions button { padding:8px 14px; border:none; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; }
@@ -965,14 +965,15 @@ function render() {
       </div>
       <div class="edit-form" id="ef-${t.id}" style="display:none">
         <div class="edit-grid">
-          <select id="ekat-${t.id}" style="grid-column:1/-1">${KAT_LIST.map(k=>'<option value="'+k+'"'+(t.kategorie===k?' selected':'')+'>'+k+'</option>').join('')}</select>
-          <input id="ev-${t.id}" value="${esc(t.von)}" placeholder="Von"${t.von?'':' style="display:none"'}>
-          <input id="en-${t.id}" value="${esc(t.nach)}" placeholder="Nach"${t.nach?'':' style="display:none"'}>
-          <input id="ebeschr-${t.id}" value="${esc(t.beschreibung||'')}" placeholder="Beschreibung" style="${t.von?'display:none;':''}grid-column:1/-1">
-          <input id="ep-${t.id}" value="${t.preis}" type="number" step="0.05" inputmode="decimal">
-          <input id="ed-${t.id}" value="${t.datum||''}" type="date">
-          <select id="ek-${t.id}"><option value=""${!t.klasse?' selected':''}>-</option><option value="2. Klasse"${t.klasse==='2. Klasse'?' selected':''}>2. Klasse</option><option value="1. Klasse"${t.klasse==='1. Klasse'?' selected':''}>1. Klasse</option></select>
-          <input id="eb-${t.id}" value="${esc(t.betreff||'')}" placeholder="Betreff" style="grid-column:1/-1">
+          <div class="filter-cell" style="grid-column:1/-1"><label>Kategorie</label><select id="ekat-${t.id}">${KAT_LIST.map(k=>'<option value="'+k+'"'+(t.kategorie===k?' selected':'')+'>'+k+'</option>').join('')}</select></div>
+          <div class="filter-cell" ${t.von?'':'style="display:none"'}><label>Von</label><input id="ev-${t.id}" value="${esc(t.von)}" placeholder="Von"></div>
+          <div class="filter-cell" ${t.von?'':'style="display:none"'}><label>Nach</label><input id="en-${t.id}" value="${esc(t.nach)}" placeholder="Nach"></div>
+          <div class="filter-cell" style="${t.von?'display:none;':''}grid-column:1/-1"><label>Beschreibung</label><input id="ebeschr-${t.id}" value="${esc(t.beschreibung||'')}" placeholder="Beschreibung"></div>
+          <div class="filter-cell"><label>Preis (CHF)</label><input id="ep-${t.id}" value="${t.preis}" type="number" step="0.05" inputmode="decimal"></div>
+          <div class="filter-cell"><label>Datum</label><input id="ed-${t.id}" value="${t.datum||''}" type="date"></div>
+          <div class="filter-cell"><label>Klasse</label><select id="ek-${t.id}"><option value=""${!t.klasse?' selected':''}>-</option><option value="2. Klasse"${t.klasse==='2. Klasse'?' selected':''}>2. Klasse</option><option value="1. Klasse"${t.klasse==='1. Klasse'?' selected':''}>1. Klasse</option></select></div>
+          <div class="filter-cell"><label>Art</label><select id="eret-${t.id}"><option value="einfach"${!t.retour?' selected':''}>Einfach</option><option value="retour"${t.retour?' selected':''}>Retour</option></select></div>
+          <div class="filter-cell" style="grid-column:1/-1"><label>Betreff</label><input id="eb-${t.id}" value="${esc(t.betreff||'')}" placeholder="Betreff"></div>
         </div>
         <div class="edit-actions"><button class="edit-save" onclick="saveEdit('${t.id}')">Speichern</button><button class="edit-cancel" onclick="cancelEdit('${t.id}')">Abbrechen</button></div>
       </div>
@@ -1004,11 +1005,12 @@ function saveEdit(id){
   const beschr=document.getElementById('ebeschr-'+id).value.trim();
   const p=parseFloat(document.getElementById('ep-'+id).value),d=document.getElementById('ed-'+id).value;
   const k=document.getElementById('ek-'+id).value,b=document.getElementById('eb-'+id).value.trim();
+  const ret=document.getElementById('eret-'+id).value==='retour';
   const isTrip=kat==='ÖV-Reise';
   if(isTrip&&(!v||!n||isNaN(p))){msg('Von, Nach und Preis ausfüllen.','error');return}
   if(!isTrip&&(!beschr||isNaN(p))){msg('Beschreibung und Preis ausfüllen.','error');return}
   t.kategorie=kat;t.von=isTrip?v:'';t.nach=isTrip?n:'';t.beschreibung=isTrip?'':beschr;
-  t.preis=p;t.datum=d||null;t.klasse=k||null;t.betreff=b;
+  t.preis=p;t.datum=d||null;t.klasse=k||null;t.betreff=b;t.retour=ret;
   save();msg(tripLabel(t)+' aktualisiert!','success');
 }
 async function del(id){const t=trips.find(x=>x.id===id);if(!confirm((t?tripLabel(t):'Spese')+' wirklich löschen?'))return;await deleteFilesForTrip(id);trips=trips.filter(x=>x.id!==id);save()}
@@ -1372,21 +1374,30 @@ async function sendAllToOdoo() {
 // Auto-Paste & Share Target
 // ══════════════════════════════════════════
 async function autoPaste() {
+  const input = document.getElementById('urlIn');
   try {
-    const text = await navigator.clipboard.readText();
-    if (!text) { msg('Zwischenablage ist leer.', 'error'); return; }
-    const url = extractSbbUrl(text);
-    if (url.includes('sbb')) {
-      document.getElementById('urlIn').value = url;
-      parseUrl();
-    } else {
-      document.getElementById('urlIn').value = text.trim();
-      msg('Kein SBB-Link erkannt. Bitte prüfen.', 'error');
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        const url = extractSbbUrl(text);
+        if (url.includes('sbb')) {
+          input.value = url;
+          parseUrl();
+          return;
+        }
+        input.value = text.trim();
+        input.focus();
+        input.select();
+        return;
+      }
     }
-  } catch (e) {
-    document.getElementById('urlIn').focus();
-    msg('Zwischenablage nicht verfügbar. Bitte lange drücken → Einfügen.', 'error');
-  }
+  } catch (e) {}
+  // Fallback: focus input for manual paste
+  input.focus();
+  input.value = '';
+  // Try execCommand paste as secondary fallback
+  try { document.execCommand('paste'); if (input.value) { parseUrl(); return; } } catch(e) {}
+  msg('Ins Feld tippen und lange drücken → Einfügen', 'success');
 }
 
 function handleShareTarget() {
