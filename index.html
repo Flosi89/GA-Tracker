@@ -422,7 +422,35 @@ const ST={'8505000':'Luzern','8503000':'Zürich HB','8507000':'Bern','8500010':'
 // State
 // ══════════════════════════════════════════
 let trips = JSON.parse(localStorage.getItem('sbb-t') || '[]');
-trips.forEach(t => { if (!t.files) t.files = []; if (!t.betreff) t.betreff = ''; if (!t.kategorie) t.kategorie = 'ÖV-Reise'; if (!t.beschreibung) t.beschreibung = ''; if (t.archived===undefined) t.archived = false; });
+trips.forEach(t => { if (!t.files) t.files = []; if (!t.betreff) t.betreff = ''; if (!t.kategorie) t.kategorie = 'ÖV-Reise'; if (!t.beschreibung) t.beschreibung = ''; if (t.archived===undefined) t.archived = false; if (t.retour===undefined) t.retour = false; });
+
+// Auto-merge retour pairs (one-time migration)
+if (!localStorage.getItem('retour-merged')) {
+  const toRemove = new Set();
+  for (let i = 0; i < trips.length; i++) {
+    if (toRemove.has(trips[i].id) || !trips[i].von || !trips[i].nach) continue;
+    for (let j = i + 1; j < trips.length; j++) {
+      if (toRemove.has(trips[j].id)) continue;
+      if (trips[j].von === trips[i].nach && trips[j].nach === trips[i].von
+          && trips[j].datum === trips[i].datum && trips[j].preis === trips[i].preis
+          && trips[j].betreff === trips[i].betreff && trips[j].kategorie === trips[i].kategorie) {
+        // Merge: double the price, mark as retour, merge files
+        trips[i].retour = true;
+        trips[i].preis = trips[i].preis * 2;
+        trips[i].files = [...trips[i].files, ...(trips[j].files||[])];
+        if (trips[j].archived) trips[i].archived = true;
+        toRemove.add(trips[j].id);
+        break;
+      }
+    }
+  }
+  if (toRemove.size > 0) {
+    trips = trips.filter(t => !toRemove.has(t.id));
+    localStorage.setItem('sbb-trips', JSON.stringify(trips));
+    console.log('Merged ' + toRemove.size + ' retour pairs');
+  }
+  localStorage.setItem('retour-merged', '1');
+}
 let pend = null;
 let statsVisible = false;
 let filtersVisible = false;
@@ -616,31 +644,23 @@ async function confirmTrip() {
   const pr = parseFloat(document.getElementById('pvP').value);
   if (isNaN(pr)||pr<=0) { msg('Bitte Preis eingeben.','error'); return; }
   const kl = document.getElementById('pvK').value, ret = document.getElementById('pvR2').value==='retour', bet = document.getElementById('pvB').value.trim();
-  const sbbUrl = document.getElementById('urlIn').value.trim();
 
-  const newIds = [];
-  const trip1 = { id:uid(), kategorie:'ÖV-Reise', von:pend.von, nach:pend.nach, beschreibung:'', preis:pr, datum:pend.datum, klasse:kl, betreff:bet, files:[], zeit:pend.zeit||null };
-  trips.push(trip1); newIds.push(trip1.id);
-
-  if (ret) {
-    const trip2 = { id:uid(), kategorie:'ÖV-Reise', von:pend.nach, nach:pend.von, beschreibung:'', preis:pr, datum:pend.datum, klasse:kl, betreff:bet, files:[], zeit:null };
-    trips.push(trip2); newIds.push(trip2.id);
-  }
+  const totalPreis = ret ? pr * 2 : pr;
+  const trip = { id:uid(), kategorie:'ÖV-Reise', von:pend.von, nach:pend.nach, beschreibung:'', preis:totalPreis, datum:pend.datum, klasse:kl, betreff:bet, files:[], zeit:pend.zeit||null, retour:ret };
+  trips.push(trip);
 
   save();
-  msg(pend.von+' → '+pend.nach+(ret?' (retour)':'')+' hinzugefügt! Jetzt Beleg anhängen.','success');
+  msg(pend.von+(ret?' ↔ ':' → ')+pend.nach+(ret?' (Retour, CHF '+totalPreis.toFixed(2)+')':'')+' hinzugefügt!','success');
   pend=null; document.getElementById('pv').classList.remove('show'); document.getElementById('urlIn').value=''; document.getElementById('pvB').value='';
 
-  // Scroll to new trip and prompt for screenshot
   setTimeout(() => {
-    const el = document.getElementById('tc-' + newIds[0]);
+    const el = document.getElementById('tc-' + trip.id);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       el.style.outline = '3px solid var(--brand)';
       el.style.outlineOffset = '2px';
       setTimeout(() => { el.style.outline = ''; el.style.outlineOffset = ''; }, 3000);
-      // Auto-expand to show attach buttons
-      toggleExpand(newIds[0]);
+      toggleExpand(trip.id);
     }
   }, 200);
 }
@@ -672,11 +692,11 @@ function addM(){
   const ret=isTrip&&document.getElementById('mR').value==='retour',bet=document.getElementById('mB').value.trim();
   if(isTrip&&(!v||!n||isNaN(pr))){msg('Von, Nach und Preis ausfüllen.','error');return}
   if(!isTrip&&(!beschr||isNaN(pr))){msg('Beschreibung und Preis ausfüllen.','error');return}
-  const base={id:uid(),kategorie:kat,von:isTrip?v:'',nach:isTrip?n:'',beschreibung:isTrip?'':beschr,preis:pr,datum:d||null,klasse:isTrip?null:null,betreff:bet,files:[]};
+  const totalPreis = ret ? pr * 2 : pr;
+  const base={id:uid(),kategorie:kat,von:isTrip?v:'',nach:isTrip?n:'',beschreibung:isTrip?'':beschr,preis:totalPreis,datum:d||null,klasse:isTrip?null:null,betreff:bet,files:[],retour:ret};
   trips.push(base);
-  if(ret) trips.push({...base,id:uid(),von:n,nach:v});
   save();
-  const label=isTrip?(v+' → '+n+(ret?' (retour)':'')):(beschr);
+  const label=isTrip?(v+(ret?' ↔ ':' → ')+n+(ret?' (Retour, CHF '+totalPreis.toFixed(2)+')':'')):(beschr);
   msg(label+' hinzugefügt!','success');
   ['mV','mN','mP','mD','mB','mBeschr'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('mR').value='einfach'; document.getElementById('mKat').value='ÖV-Reise'; toggleManualFields();
@@ -858,7 +878,7 @@ const KAT_COLORS={'ÖV-Reise':'#1050a0','Essen':'#d97706','Unterkunft':'#7c3aed'
 const KAT_LABELS={'ÖV-Reise':'ÖV','Essen':'Essen','Unterkunft':'Hotel','Material':'Mat.','Sonstiges':'Div.'};
 const KAT_LIST=['ÖV-Reise','Essen','Unterkunft','Material','Sonstiges'];
 function katBadge(k){const c=KAT_COLORS[k]||'#64748b';return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:${c};background:${c}12;padding:2px 7px;border-radius:4px;white-space:nowrap"><span style="width:6px;height:6px;border-radius:50%;background:${c};flex-shrink:0"></span>${KAT_LABELS[k]||k}</span>`}
-function tripLabel(t){return t.von&&t.nach?t.von+' → '+t.nach:(t.beschreibung||t.kategorie||'Spese')}
+function tripLabel(t){return t.von&&t.nach?t.von+(t.retour?' ↔ ':' → ')+t.nach:(t.beschreibung||t.kategorie||'Spese')}
 function tripIcon(t){return katBadge(t.kategorie||'Sonstiges')}
 
 function render() {
@@ -918,7 +938,7 @@ function render() {
       <div class="trip-main" id="tv-${t.id}">
         <div class="t-top">
           <div class="t-left">
-            <div class="t-header"><div class="t-num">${i+1}</div><div class="t-route">${t.von&&t.nach ? esc(t.von)+'<span class="t-arrow">→</span>'+esc(t.nach) : esc(t.beschreibung||t.kategorie)}${t.archived?'<span class="t-archived-badge">✓</span>':''}</div>${belegIndicator}</div>
+            <div class="t-header"><div class="t-num">${i+1}</div><div class="t-route">${t.von&&t.nach ? esc(t.von)+'<span class="t-arrow">'+(t.retour?'↔':'→')+'</span>'+esc(t.nach) : esc(t.beschreibung||t.kategorie)}${t.archived?'<span class="t-archived-badge">✓</span>':''}</div>${belegIndicator}</div>
             ${t.betreff?'<div class="t-betreff">'+esc(t.betreff)+'</div>':''}
           </div>
           <div class="t-actions">
@@ -928,7 +948,7 @@ function render() {
         </div>
         <div class="t-bottom">
           ${katBadge(t.kategorie||'ÖV-Reise')}
-          <div class="t-meta">${t.datum?'<span>'+fmtD(t.datum)+'</span>':''}${t.klasse?'<span>'+esc(t.klasse)+'</span>':''}</div>
+          <div class="t-meta">${t.retour?'<span style="color:var(--brand);font-weight:600">Retour</span>':''}${t.datum?'<span>'+fmtD(t.datum)+'</span>':''}${t.klasse?'<span>'+esc(t.klasse)+'</span>':''}</div>
           <div class="t-price">CHF ${t.preis.toFixed(2)}</div>
         </div>
       </div>
@@ -1023,9 +1043,9 @@ function msg(t,type='info'){const el=document.createElement('div');el.className=
 // ══════════════════════════════════════════
 function csv(){
   const data = getFiltered().length ? getFiltered() : trips;
-  const r=['Nr.,Kategorie,Von,Nach,Beschreibung,Preis (CHF),Datum,Klasse,Betreff,Status,Belege'];
-  data.forEach((t,i)=>{const fn=(t.files||[]).map(f=>f.name).join('; ');r.push(`${i+1},"${t.kategorie||'ÖV-Reise'}","${t.von||''}","${t.nach||''}","${t.beschreibung||''}",${t.preis.toFixed(2)},${t.datum||''},${t.klasse||''},"${t.betreff||''}",${t.archived?'Exportiert':'Offen'},"${fn}"`)});
-  r.push(`,,,,TOTAL,${data.reduce((s,t)=>s+t.preis,0).toFixed(2)},,,,,`);
+  const r=['Nr.,Kategorie,Von,Nach,Beschreibung,Art,Preis (CHF),Datum,Klasse,Betreff,Status,Belege'];
+  data.forEach((t,i)=>{const fn=(t.files||[]).map(f=>f.name).join('; ');r.push(`${i+1},"${t.kategorie||'ÖV-Reise'}","${t.von||''}","${t.nach||''}","${t.beschreibung||''}",${t.retour?'Retour':'Einfach'},${t.preis.toFixed(2)},${t.datum||''},${t.klasse||''},"${t.betreff||''}",${t.archived?'Exportiert':'Offen'},"${fn}"`)});
+  r.push(`,,,,,,${data.reduce((s,t)=>s+t.preis,0).toFixed(2)},,,,,,`);
   dlFile('spesen.csv','text/csv',r.join('\n'));
 }
 function jsn(){const tot=trips.reduce((s,t)=>s+t.preis,0);dlFile('spesen.json','application/json',JSON.stringify({spesen:trips,total:Math.round(tot*100)/100,anzahl:trips.length},null,2))}
@@ -1042,7 +1062,7 @@ function xlsx(){
   if (!data.length) { msg('Keine Spesen zum Exportieren.','error'); return; }
 
   // ── Sheet 1: Spesenliste ──
-  const headers = ['Nr.','Kategorie','Von','Nach','Beschreibung','Preis (CHF)','Datum','Klasse','Betreff','Status','Belege'];
+  const headers = ['Nr.','Kategorie','Von','Nach','Beschreibung','Art','Preis (CHF)','Datum','Klasse','Betreff','Status','Belege'];
   const rows = [headers];
   
   data.forEach((t, i) => {
@@ -1052,6 +1072,7 @@ function xlsx(){
       t.von || '',
       t.nach || '',
       t.beschreibung || '',
+      t.retour ? 'Retour' : 'Einfach',
       t.preis,
       t.datum || '',
       t.klasse || '',
@@ -1064,7 +1085,7 @@ function xlsx(){
   // Total row
   const totalRow = data.reduce((s, t) => s + t.preis, 0);
   rows.push([]);
-  rows.push(['', '', '', '', 'TOTAL', totalRow, '', '', '', '', '']);
+  rows.push(['', '', '', '', '', 'TOTAL', totalRow, '', '', '', '', '']);
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
 
@@ -1075,6 +1096,7 @@ function xlsx(){
     { wch: 18 },  // Von
     { wch: 18 },  // Nach
     { wch: 25 },  // Beschreibung
+    { wch: 8 },   // Art
     { wch: 12 },  // Preis
     { wch: 12 },  // Datum
     { wch: 10 },  // Klasse
@@ -1083,18 +1105,18 @@ function xlsx(){
     { wch: 30 },  // Belege
   ];
 
-  // Format price column as number with 2 decimals
-  for (let r = 1; r <= data.length; r++) {
-    const cell = XLSX.utils.encode_cell({ r, c: 5 });
-    if (ws[cell]) ws[cell].t = 'n'; ws[cell].z = '#,##0.00';
-  }
-  // Total cell
-  const totalCell = XLSX.utils.encode_cell({ r: data.length + 2, c: 5 });
-  if (ws[totalCell]) { ws[totalCell].t = 'n'; ws[totalCell].z = '#,##0.00'; }
-
-  // Format date column
+  // Format price column as number with 2 decimals (col 6)
   for (let r = 1; r <= data.length; r++) {
     const cell = XLSX.utils.encode_cell({ r, c: 6 });
+    if (ws[cell]) { ws[cell].t = 'n'; ws[cell].z = '#,##0.00'; }
+  }
+  // Total cell
+  const totalCell = XLSX.utils.encode_cell({ r: data.length + 2, c: 6 });
+  if (ws[totalCell]) { ws[totalCell].t = 'n'; ws[totalCell].z = '#,##0.00'; }
+
+  // Format date column (col 7)
+  for (let r = 1; r <= data.length; r++) {
+    const cell = XLSX.utils.encode_cell({ r, c: 7 });
     if (ws[cell] && ws[cell].v) {
       const d = new Date(ws[cell].v + 'T00:00:00');
       if (!isNaN(d)) {
