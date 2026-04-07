@@ -67,6 +67,7 @@
   .preview-route { font-size:17px; font-weight:700; }
   .preview-via { font-size:12px; color:var(--g500); margin-top:2px; display:none; }
   .preview-meta { font-size:13px; color:var(--g600); margin-top:4px; }
+  .price-preview { margin-top:8px; padding:8px 12px; background:var(--brand-light); border-radius:8px; font-size:13px; font-weight:600; color:var(--brand); text-align:center; }
   .msg { padding:12px 16px; border-radius:var(--radius); margin-bottom:12px; font-size:13px; line-height:1.5; }
   .msg-error { background:var(--red-light); border:1px solid #ffcdd2; color:#c62828; }
   .msg-success { background:var(--accent-light); border:1px solid var(--accent); color:#1a7a1e; }
@@ -98,6 +99,13 @@
   .s-total { font-size:32px; font-weight:700; letter-spacing:-0.5px; margin-top:2px; line-height:1.1; }
   .s-count { font-size:13px; color:var(--g500); font-weight:400; display:block; margin-top:2px; }
   .s-filtered { font-size:11px; color:var(--blue); margin-top:6px; }
+  .ga-widget { text-align:right; min-width:120px; }
+  .ga-widget .ga-label { font-size:10px; color:var(--g500); text-transform:uppercase; letter-spacing:0.5px; font-weight:600; }
+  .ga-widget .ga-val { font-size:16px; font-weight:700; color:var(--g900); margin-top:2px; }
+  .ga-widget .ga-bar { height:5px; background:var(--g200); border-radius:3px; margin-top:4px; overflow:hidden; }
+  .ga-widget .ga-bar-fill { height:100%; border-radius:3px; transition:width 0.3s; }
+  .ga-widget .ga-sub { font-size:10px; color:var(--g500); margin-top:2px; }
+  .toolbar-btn .badge { display:inline-flex; align-items:center; justify-content:center; width:6px; height:6px; background:var(--brand); border-radius:50%; margin-left:2px; }
   .kat-breakdown { margin-top:14px; padding-top:14px; border-top:1px solid var(--g200); display:grid; gap:0; }
   .kat-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--g200); }
   .kat-row:last-child { border-bottom:none; }
@@ -192,6 +200,7 @@
   .edit-save { background:var(--accent); color:white; flex:1; }
   .edit-cancel { background:none; color:var(--g600); border:1px solid var(--g300) !important; }
   .btn-attach { display:inline-flex; align-items:center; gap:4px; background:white; border:1px solid var(--g300); border-radius:8px; padding:6px 12px; font-size:12px; color:var(--g600); cursor:pointer; font-family:inherit; position:relative; overflow:hidden; flex-shrink:0; transition:all 0.15s; }
+  .quick-attach { padding:8px 16px; border-top:1px solid var(--g200); display:flex; gap:6px; }
   .btn-attach:hover { border-color:var(--brand); color:var(--brand); }
   .btn-attach input { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; font-size:0; }
   .btn-attach svg { width:14px; height:14px; }
@@ -253,11 +262,12 @@
         <div class="preview-via" id="pvV"></div>
         <div class="preview-meta" id="pvM"></div>
         <div class="pv-grid">
-          <div class="filter-cell"><label>Preis</label><div style="display:flex;align-items:center;gap:4px"><span style="color:var(--g500);font-weight:600;font-size:13px">CHF</span><input type="number" step="0.05" id="pvP" placeholder="0.00" inputmode="decimal"></div></div>
+          <div class="filter-cell"><label>Preis (einfach)</label><div style="display:flex;align-items:center;gap:4px"><span style="color:var(--g500);font-weight:600;font-size:13px">CHF</span><input type="number" step="0.05" id="pvP" placeholder="0.00" inputmode="decimal" oninput="updatePricePreview()"></div></div>
           <div class="filter-cell"><label>Klasse</label><select id="pvK"><option value="2. Klasse">2. Klasse</option><option value="1. Klasse">1. Klasse</option></select></div>
-          <div class="filter-cell"><label>Art</label><select id="pvR2"><option value="einfach">Einfach</option><option value="retour">Retour</option></select></div>
+          <div class="filter-cell"><label>Art</label><select id="pvR2" onchange="updatePricePreview()"><option value="einfach">Einfach</option><option value="retour">Retour</option></select></div>
           <div class="filter-cell"><label>Betreff</label><input type="text" id="pvB" placeholder="optional"></div>
         </div>
+        <div class="price-preview" id="pricePreview" style="display:none"></div>
         <div style="display:flex;gap:8px;margin-top:12px;">
           <a class="btn btn-sbb" id="pvSbbLink" href="#" target="_blank" rel="noopener">SBB öffnen</a>
           <button class="btn btn-green" style="flex:2;" onclick="confirmTrip()">Hinzufügen</button>
@@ -280,11 +290,12 @@
         <div class="filter-cell" id="mcVon"><label>Von</label><input class="form-input" id="mV" placeholder="Abfahrtsort"></div>
         <div class="filter-cell" id="mcNach"><label>Nach</label><input class="form-input" id="mN" placeholder="Ankunftsort"></div>
         <div class="filter-cell" id="mcBeschr" style="grid-column:1/-1;display:none"><label>Beschreibung</label><input class="form-input" id="mBeschr" placeholder="z.B. Mittagessen Kundenmeeting"></div>
-        <div class="filter-cell"><label>Preis</label><input class="form-input" id="mP" placeholder="CHF" type="number" step="0.05" inputmode="decimal"></div>
+        <div class="filter-cell"><label>Preis (einfach)</label><input class="form-input" id="mP" placeholder="CHF" type="number" step="0.05" inputmode="decimal" oninput="updateManualPreview()"></div>
         <div class="filter-cell"><label>Datum</label><input class="form-input" id="mD" type="date"></div>
-        <div class="filter-cell" id="mcArt"><label>Art</label><select class="form-input" id="mR"><option value="einfach">Einfach</option><option value="retour">Retour</option></select></div>
+        <div class="filter-cell" id="mcArt"><label>Art</label><select class="form-input" id="mR" onchange="updateManualPreview()"><option value="einfach">Einfach</option><option value="retour">Retour</option></select></div>
         <div class="filter-cell"><label>Betreff</label><input class="form-input" id="mB" placeholder="optional"></div>
       </div>
+      <div class="price-preview" id="manualPricePreview" style="display:none"></div>
       <div style="display:flex;gap:8px;margin-top:12px;">
         <button class="btn btn-red" style="flex:1" onclick="addM()">Hinzufügen</button>
       </div>
@@ -300,6 +311,7 @@
         <div class="s-total" id="tot"></div>
         <div class="s-count" id="totCount"></div>
       </div>
+      <div id="gaWidget" class="ga-widget"></div>
     </div>
     <div class="s-filtered" id="filtInfo"></div>
     <div class="kat-breakdown" id="katBreakdown"></div>
@@ -665,6 +677,25 @@ async function confirmTrip() {
 document.getElementById('pvP').addEventListener('keydown',e=>{if(e.key==='Enter')confirmTrip()});
 document.getElementById('urlIn').addEventListener('keydown',e=>{if(e.key==='Enter')parseUrl()});
 
+function updatePricePreview(){
+  const pr=parseFloat(document.getElementById('pvP').value);
+  const ret=document.getElementById('pvR2').value==='retour';
+  const el=document.getElementById('pricePreview');
+  if(ret&&!isNaN(pr)&&pr>0){
+    el.textContent='CHF '+pr.toFixed(2)+' × 2 = CHF '+(pr*2).toFixed(2)+' (Retour)';
+    el.style.display='block';
+  } else { el.style.display='none'; }
+}
+function updateManualPreview(){
+  const pr=parseFloat(document.getElementById('mP').value);
+  const ret=document.getElementById('mR').value==='retour';
+  const el=document.getElementById('manualPricePreview');
+  if(ret&&!isNaN(pr)&&pr>0){
+    el.textContent='CHF '+pr.toFixed(2)+' × 2 = CHF '+(pr*2).toFixed(2)+' (Retour)';
+    el.style.display='block';
+  } else { el.style.display='none'; }
+}
+
 function switchTab(tab) {
   document.getElementById('tcLink').style.display = tab === 'link' ? '' : 'none';
   document.getElementById('tcManual').style.display = tab === 'manual' ? '' : 'none';
@@ -901,6 +932,20 @@ function render() {
   if(archivedCount>0) infoparts.push(openCount+' offen, '+archivedCount+' exportiert');
   document.getElementById('filtInfo').textContent=infoparts.join(' · ');
 
+  // GA comparison widget
+  const oevTotal = trips.filter(t=>(t.kategorie||'ÖV-Reise')==='ÖV-Reise').reduce((s,t)=>s+t.preis,0);
+  const gaPreis=3995, gaDiff=gaPreis-oevTotal, gaPct=Math.min(Math.round(oevTotal/gaPreis*100),100);
+  const gw=document.getElementById('gaWidget');
+  gw.innerHTML=`<div class="ga-label">GA-Vergleich</div>
+    <div class="ga-val">${gaDiff>0?'−CHF '+gaDiff.toFixed(0):'GA lohnt sich!'}</div>
+    <div class="ga-bar"><div class="ga-bar-fill" style="width:${gaPct}%;background:${gaPct>=100?'var(--accent)':'var(--brand)'}"></div></div>
+    <div class="ga-sub">CHF ${oevTotal.toFixed(0)} / ${gaPreis.toLocaleString('de-CH')}</div>`;
+
+  // Filter badge
+  const fb=document.getElementById('filterBtn');
+  const hasActiveFilter = document.getElementById('fMonth').value || document.getElementById('fKat').value!=='all' || document.getElementById('fArchive').value!=='open' || document.getElementById('fSort').value!=='manual';
+  fb.innerHTML=`<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>Filter${hasActiveFilter||isFiltered?'<span class="badge"></span>':''}`;
+
   // Category breakdown
   const katTotals={};
   filtered.forEach(t=>{const k=t.kategorie||'ÖV-Reise';if(!katTotals[k])katTotals[k]={count:0,total:0};katTotals[k].count++;katTotals[k].total+=t.preis});
@@ -949,6 +994,7 @@ function render() {
           <div class="t-price">CHF ${t.preis.toFixed(2)}</div>
         </div>
       </div>
+      ${!hasFiles?`<div class="quick-attach"><label class="btn-attach"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg> Datei<input type="file" accept="image/*,application/pdf" multiple onchange="attachFile('${t.id}',this)"></label><label class="btn-attach"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg> Foto<input type="file" accept="image/*" capture="environment" onchange="attachFile('${t.id}',this)"></label></div>`:''}
       <div class="t-expand" id="ax-${t.id}">
         <div class="t-expand-section">
           <label class="btn-attach"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg> Datei<input type="file" accept="image/*,application/pdf" multiple onchange="attachFile('${t.id}',this)"></label>
