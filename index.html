@@ -173,10 +173,16 @@
   .btn-act.is-archived { color:var(--accent); }
   .btn-act svg { width:16px; height:16px; }
   .btn-act.danger:hover { color:var(--red); background:var(--red-light); }
-  .t-actions-expand { display:none; padding:6px 16px; border-top:1px solid var(--g200); background:var(--g50); gap:4px; justify-content:flex-end; align-items:center; }
-  .t-actions-expand.show { display:flex; }
-  .t-actions-expand .btn-act { padding:8px 12px; font-size:11px; gap:4px; color:var(--g600); }
-  .t-actions-expand .btn-act span { font-size:11px; }
+  .t-actions-expand { display:none; } /* deprecated */
+  .t-expand { display:none; border-top:1px solid var(--g200); background:var(--g50); }
+  .t-expand.show { display:block; }
+  .t-expand-section { padding:10px 16px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .t-expand-actions { padding:8px 16px; border-top:1px solid var(--g200); display:flex; gap:4px; justify-content:flex-end; flex-wrap:wrap; }
+  .beleg-ok { display:inline-flex; align-items:center; gap:3px; font-size:10px; color:var(--accent); font-weight:600; margin-left:auto; flex-shrink:0; }
+  .beleg-missing { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; font-size:10px; font-weight:700; color:#d97706; background:#fef3c7; border-radius:50%; margin-left:auto; flex-shrink:0; }
+  .empty { text-align:center; color:var(--g400); font-size:13px; padding:36px 0; }
+  .t-expand-actions .btn-act { padding:8px 12px; font-size:11px; gap:4px; color:var(--g600); }
+  .t-expand-actions .btn-act span { font-size:11px; }
   .edit-form { padding:12px 16px; border-top:1px solid var(--g200); background:var(--g50); }
   .edit-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
   .edit-grid input,.edit-grid select { padding:8px 10px; border:1px solid var(--g300); border-radius:6px; font-size:13px; font-family:inherit; outline:none; width:100%; }
@@ -185,7 +191,6 @@
   .edit-actions button { padding:8px 14px; border:none; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; }
   .edit-save { background:var(--accent); color:white; flex:1; }
   .edit-cancel { background:none; color:var(--g600); border:1px solid var(--g300) !important; }
-  .attach-bar { display:flex; align-items:center; gap:6px; padding:10px 16px; border-top:1px solid var(--g200); flex-wrap:wrap; }
   .btn-attach { display:inline-flex; align-items:center; gap:4px; background:white; border:1px solid var(--g300); border-radius:8px; padding:6px 12px; font-size:12px; color:var(--g600); cursor:pointer; font-family:inherit; position:relative; overflow:hidden; flex-shrink:0; transition:all 0.15s; }
   .btn-attach:hover { border-color:var(--brand); color:var(--brand); }
   .btn-attach input { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; font-size:0; }
@@ -197,7 +202,6 @@
   .att-chip .att-x { flex-shrink:0; color:var(--g500); font-size:14px; margin-left:2px; cursor:pointer; line-height:1; }
   .att-chip .att-x:hover { color:var(--red); }
   .export-panel { background:white; border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin-top:12px; display:none; }
-  .export-panel.show { display:block; }
   .export-panel summary { font-size:13px; font-weight:600; color:var(--g700); cursor:pointer; list-style:none; }
   .export-panel summary::marker { display:none; }
   .export-panel[open] summary { margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid var(--g200); }
@@ -379,7 +383,7 @@
   </details>
 
   <!-- Export -->
-  <details class="export-panel" id="exp">
+  <details class="export-panel" id="exp" style="display:none">
     <summary>Export &amp; Aktionen</summary>
     <div class="export-grid">
       <button class="export-btn primary" onclick="xlsx()">Excel Export (.xlsx)</button>
@@ -632,17 +636,11 @@ async function confirmTrip() {
     const el = document.getElementById('tc-' + newIds[0]);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // Highlight briefly
       el.style.outline = '3px solid var(--brand)';
       el.style.outlineOffset = '2px';
       setTimeout(() => { el.style.outline = ''; el.style.outlineOffset = ''; }, 3000);
-      // Try to open file picker for the first trip
-      const fileInput = el.querySelector('.btn-attach input[type="file"]');
-      if (fileInput) {
-        setTimeout(() => {
-          try { fileInput.click(); } catch(e) {}
-        }, 500);
-      }
+      // Auto-expand to show attach buttons
+      toggleExpand(newIds[0]);
     }
   }, 200);
 }
@@ -865,7 +863,7 @@ function tripIcon(t){return katBadge(t.kategorie||'Sonstiges')}
 
 function render() {
   const filtered = getFiltered();
-  const l=document.getElementById('tl'),s=document.getElementById('sum'),e=document.getElementById('emp'),x=document.getElementById('exp'),tb=document.getElementById('toolbar');
+  const l=document.getElementById('tl'),s=document.getElementById('sum'),e=document.getElementById('emp'),tb=document.getElementById('toolbar');
   const hasTrips = trips.length > 0;
   const isFiltered = filtered.length !== trips.length;
 
@@ -873,8 +871,8 @@ function render() {
   document.getElementById('filterBtn').classList.toggle('active', filtersVisible);
   document.getElementById('statsBtn').classList.toggle('active', statsVisible);
   document.getElementById('filterBar').classList.toggle('show', hasTrips && filtersVisible);
-  if (!hasTrips) { l.innerHTML='';s.classList.remove('show');e.style.display='block';x.classList.remove('show');document.getElementById('statsPanel').classList.remove('show');document.getElementById('odooSetup').style.display='none';return }
-  e.style.display='none';x.classList.add('show');document.getElementById('odooSetup').style.display='';
+  if (!hasTrips) { l.innerHTML='';s.classList.remove('show');e.style.display='block';document.getElementById('exp').style.display='none';document.getElementById('statsPanel').classList.remove('show');document.getElementById('odooSetup').style.display='none';return }
+  e.style.display='none';document.getElementById('exp').style.display='';document.getElementById('odooSetup').style.display='';
 
   const tot=filtered.reduce((a,t)=>a+t.preis,0),n=filtered.length;
   const archivedCount=trips.filter(t=>t.archived).length, openCount=trips.length-archivedCount;
@@ -904,6 +902,7 @@ function render() {
   } else { kb.style.display='none'; }
 
   l.innerHTML = filtered.map((t, i) => {
+    const hasFiles = t.files && t.files.length > 0;
     const filesHtml = (t.files||[]).map(f => {
       const icon = f.type==='application/pdf'
         ? '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>'
@@ -912,16 +911,18 @@ function render() {
     }).join('');
     const ti = trips.indexOf(t);
     const katColor = KAT_COLORS[t.kategorie||'ÖV-Reise']||'#64748b';
+    const belegIndicator = hasFiles 
+      ? `<span class="beleg-ok" title="${t.files.length} Beleg(e)"><svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>${t.files.length}</span>`
+      : `<span class="beleg-missing" title="Kein Beleg">!</span>`;
     return `<div class="trip-card${t.archived?' archived':''}" id="tc-${t.id}" style="border-left-color:${katColor}">
       <div class="trip-main" id="tv-${t.id}">
         <div class="t-top">
           <div class="t-left">
-            <div class="t-header"><div class="t-num">${i+1}</div><div class="t-route">${t.von&&t.nach ? esc(t.von)+'<span class="t-arrow">→</span>'+esc(t.nach) : esc(t.beschreibung||t.kategorie)}${t.archived?'<span class="t-archived-badge">✓</span>':''}</div></div>
+            <div class="t-header"><div class="t-num">${i+1}</div><div class="t-route">${t.von&&t.nach ? esc(t.von)+'<span class="t-arrow">→</span>'+esc(t.nach) : esc(t.beschreibung||t.kategorie)}${t.archived?'<span class="t-archived-badge">✓</span>':''}</div>${belegIndicator}</div>
             ${t.betreff?'<div class="t-betreff">'+esc(t.betreff)+'</div>':''}
           </div>
           <div class="t-actions">
             <button class="btn-act${t.archived?' is-archived':''}" onclick="toggleArchive('${t.id}')" title="${t.archived?'Öffnen':'Archivieren'}"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${t.archived?'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z':'M5 13l4 4L19 7'}"/></svg></button>
-            <button class="btn-act" onclick="startEdit('${t.id}')" title="Bearbeiten"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
             <button class="btn-act" onclick="toggleExpand('${t.id}')" title="Mehr"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01"/></svg></button>
           </div>
         </div>
@@ -931,11 +932,19 @@ function render() {
           <div class="t-price">CHF ${t.preis.toFixed(2)}</div>
         </div>
       </div>
-      <div class="t-actions-expand" id="ax-${t.id}">
-        <button class="btn-act" onclick="moveTrip('${t.id}',-1)"${ti===0?' disabled':''}><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg><span>Hoch</span></button>
-        <button class="btn-act" onclick="moveTrip('${t.id}',1)"${ti===trips.length-1?' disabled':''}><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg><span>Runter</span></button>
-        <button class="btn-act" onclick="sendToOdoo('${t.id}')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg><span>Senden</span></button>
-        <button class="btn-act danger" onclick="del('${t.id}')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg><span>Löschen</span></button>
+      <div class="t-expand" id="ax-${t.id}">
+        <div class="t-expand-section">
+          <label class="btn-attach"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg> Datei<input type="file" accept="image/*,application/pdf" multiple onchange="attachFile('${t.id}',this)"></label>
+          <label class="btn-attach"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg> Foto<input type="file" accept="image/*" capture="environment" onchange="attachFile('${t.id}',this)"></label>
+          ${filesHtml}
+        </div>
+        <div class="t-expand-actions">
+          <button class="btn-act" onclick="startEdit('${t.id}')" title="Bearbeiten"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg><span>Bearbeiten</span></button>
+          <button class="btn-act" onclick="moveTrip('${t.id}',-1)"${ti===0?' disabled':''}><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg><span>Hoch</span></button>
+          <button class="btn-act" onclick="moveTrip('${t.id}',1)"${ti===trips.length-1?' disabled':''}><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg><span>Runter</span></button>
+          <button class="btn-act" onclick="sendToOdoo('${t.id}')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg><span>Senden</span></button>
+          <button class="btn-act danger" onclick="del('${t.id}')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg><span>Löschen</span></button>
+        </div>
       </div>
       <div class="edit-form" id="ef-${t.id}" style="display:none">
         <div class="edit-grid">
@@ -950,11 +959,6 @@ function render() {
         </div>
         <div class="edit-actions"><button class="edit-save" onclick="saveEdit('${t.id}')">Speichern</button><button class="edit-cancel" onclick="cancelEdit('${t.id}')">Abbrechen</button></div>
       </div>
-      <div class="attach-bar" id="ab-${t.id}">
-        <label class="btn-attach"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg> Datei<input type="file" accept="image/*,application/pdf" multiple onchange="attachFile('${t.id}',this)"></label>
-        <label class="btn-attach"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg> Foto<input type="file" accept="image/*" capture="environment" onchange="attachFile('${t.id}',this)"></label>
-        ${filesHtml}
-      </div>
     </div>`;
   }).join('');
 
@@ -965,7 +969,14 @@ function render() {
 // Reorder / Edit / Delete
 // ══════════════════════════════════════════
 function moveTrip(id,dir){const i=trips.findIndex(t=>t.id===id);if(i<0)return;const n=i+dir;if(n<0||n>=trips.length)return;[trips[i],trips[n]]=[trips[n],trips[i]];save()}
-function toggleExpand(id){const el=document.getElementById('ax-'+id);el.classList.toggle('show')}
+function toggleExpand(id){
+  // Close all other expands
+  document.querySelectorAll('.t-expand.show').forEach(el => {
+    if (el.id !== 'ax-'+id) el.classList.remove('show');
+  });
+  const el=document.getElementById('ax-'+id);
+  el.classList.toggle('show');
+}
 function toggleArchive(id){const t=trips.find(x=>x.id===id);if(!t)return;t.archived=!t.archived;save();msg(tripLabel(t)+(t.archived?' archiviert.':' geöffnet.'),'success')}
 function startEdit(id){document.getElementById('tv-'+id).style.display='none';document.getElementById('ab-'+id).style.display='none';document.getElementById('ef-'+id).style.display='block'}
 function cancelEdit(id){document.getElementById('tv-'+id).style.display='';document.getElementById('ab-'+id).style.display='';document.getElementById('ef-'+id).style.display='none';render()}
