@@ -280,11 +280,19 @@
       <div class="pv-grid">
         <div class="filter-cell" style="grid-column:1/-1"><label>Kategorie</label>
           <select id="mKat" onchange="toggleManualFields()">
-            <option value="ÖV-Reise">ÖV-Reise</option>
-            <option value="Essen">Essen</option>
-            <option value="Unterkunft">Unterkunft</option>
-            <option value="Material">Material</option>
-            <option value="Sonstiges">Sonstiges</option>
+            <option value="Reisekosten GSI &amp; VS (öV)">Reisekosten öV</option>
+            <option value="Reisekosten GSI &amp; VS (Auto)">Reisekosten Auto</option>
+            <option value="Reisekosten GSI &amp; VS (Flug)">Reisekosten Flug</option>
+            <option value="Verpflegung GSI &amp; VS - Mittagessen">Verpflegung Mittag</option>
+            <option value="Verpflegung GSI &amp; VS - Abendessen">Verpflegung Abend</option>
+            <option value="Geschäftsessen (Konto fehlt)">Geschäftsessen</option>
+            <option value="Lebensmittel &amp; Getränke">Lebensmittel</option>
+            <option value="Übernachtung GSI &amp; VS">Übernachtung</option>
+            <option value="Büromaterial">Büromaterial</option>
+            <option value="Fachliteratur, Zeitschriften, Abo's">Fachliteratur</option>
+            <option value="Sitzungsaufwand extern">Sitzungsaufwand</option>
+            <option value="PR, Anlässe, Jubiläen">PR / Anlässe</option>
+            <option value="Sonstiger Personalaufwand inkl. Anlässe">Sonstiges</option>
           </select>
         </div>
         <div class="filter-cell" id="mcVon"><label>Von</label><input class="form-input" id="mV" placeholder="Abfahrtsort"></div>
@@ -339,11 +347,19 @@
         <label>Kategorie</label>
         <select id="fKat">
           <option value="all">Alle</option>
-          <option value="ÖV-Reise">ÖV-Reise</option>
-          <option value="Essen">Essen</option>
-          <option value="Unterkunft">Unterkunft</option>
-          <option value="Material">Material</option>
-          <option value="Sonstiges">Sonstiges</option>
+          <option value="Reisekosten GSI &amp; VS (öV)">Reisekosten öV</option>
+          <option value="Reisekosten GSI &amp; VS (Auto)">Reisekosten Auto</option>
+          <option value="Reisekosten GSI &amp; VS (Flug)">Reisekosten Flug</option>
+          <option value="Verpflegung GSI &amp; VS - Mittagessen">Verpflegung Mittag</option>
+          <option value="Verpflegung GSI &amp; VS - Abendessen">Verpflegung Abend</option>
+          <option value="Geschäftsessen (Konto fehlt)">Geschäftsessen</option>
+          <option value="Lebensmittel &amp; Getränke">Lebensmittel</option>
+          <option value="Übernachtung GSI &amp; VS">Übernachtung</option>
+          <option value="Büromaterial">Büromaterial</option>
+          <option value="Fachliteratur, Zeitschriften, Abo's">Fachliteratur</option>
+          <option value="Sitzungsaufwand extern">Sitzungsaufwand</option>
+          <option value="PR, Anlässe, Jubiläen">PR / Anlässe</option>
+          <option value="Sonstiger Personalaufwand inkl. Anlässe">Sonstiges</option>
         </select>
       </div>
       <div class="filter-cell">
@@ -434,7 +450,12 @@ const ST={'8505000':'Luzern','8503000':'Zürich HB','8507000':'Bern','8500010':'
 // State
 // ══════════════════════════════════════════
 let trips = JSON.parse(localStorage.getItem('sbb-t') || '[]');
-trips.forEach(t => { if (!t.files) t.files = []; if (!t.betreff) t.betreff = ''; if (!t.kategorie) t.kategorie = 'ÖV-Reise'; if (!t.beschreibung) t.beschreibung = ''; if (t.archived===undefined) t.archived = false; if (t.retour===undefined) t.retour = false; });
+trips.forEach(t => { if (!t.files) t.files = []; if (!t.betreff) t.betreff = ''; if (!t.kategorie) t.kategorie = 'Reisekosten GSI & VS (öV)'; if (!t.beschreibung) t.beschreibung = ''; if (t.archived===undefined) t.archived = false; if (t.retour===undefined) t.retour = false;
+  // Migrate old categories
+  const KAT_MIGRATE={'ÖV-Reise':'Reisekosten GSI & VS (öV)','Essen':'Verpflegung GSI & VS - Mittagessen','Unterkunft':'Übernachtung GSI & VS','Material':'Büromaterial','Sonstiges':'Sonstiger Personalaufwand inkl. Anlässe'};
+  if(KAT_MIGRATE[t.kategorie]) t.kategorie=KAT_MIGRATE[t.kategorie];
+});
+localStorage.setItem('sbb-trips', JSON.stringify(trips));
 
 // Auto-merge retour pairs
 (function mergeRetour(){
@@ -565,7 +586,7 @@ async function generateReceipt(trip, sbbUrl) {
   ctx.fill();
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 28px -apple-system, sans-serif';
-  ctx.fillText('ÖV-Reisebeleg', 32, 52);
+  ctx.fillText('Reisebeleg', 32, 52);
 
   // Date top right
   ctx.font = '18px -apple-system, sans-serif';
@@ -655,7 +676,7 @@ async function confirmTrip() {
   const kl = document.getElementById('pvK').value, ret = document.getElementById('pvR2').value==='retour', bet = document.getElementById('pvB').value.trim();
 
   const totalPreis = ret ? pr * 2 : pr;
-  const trip = { id:uid(), kategorie:'ÖV-Reise', von:pend.von, nach:pend.nach, beschreibung:'', preis:totalPreis, datum:pend.datum, klasse:kl, betreff:bet, files:[], zeit:pend.zeit||null, retour:ret };
+  const trip = { id:uid(), kategorie:'Reisekosten GSI & VS (öV)', von:pend.von, nach:pend.nach, beschreibung:'', preis:totalPreis, datum:pend.datum, klasse:kl, betreff:bet, files:[], zeit:pend.zeit||null, retour:ret };
   trips.push(trip);
 
   save();
@@ -705,7 +726,7 @@ function switchTab(tab) {
 }
 function toggleManualFields(){
   const kat=document.getElementById('mKat').value;
-  const isTrip=kat==='ÖV-Reise';
+  const isTrip=kat.startsWith('Reisekosten');
   document.getElementById('mcVon').style.display=isTrip?'':'none';
   document.getElementById('mcNach').style.display=isTrip?'':'none';
   document.getElementById('mcArt').style.display=isTrip?'':'none';
@@ -713,7 +734,7 @@ function toggleManualFields(){
 }
 function addM(){
   const kat=document.getElementById('mKat').value;
-  const isTrip=kat==='ÖV-Reise';
+  const isTrip=kat.startsWith('Reisekosten');
   const v=document.getElementById('mV').value.trim(),n=document.getElementById('mN').value.trim();
   const beschr=document.getElementById('mBeschr').value.trim();
   const pr=parseFloat(document.getElementById('mP').value),d=document.getElementById('mD').value;
@@ -727,7 +748,7 @@ function addM(){
   const label=isTrip?(v+(ret?' ↔ ':' → ')+n+(ret?' (Retour, CHF '+totalPreis.toFixed(2)+')':'')):(beschr);
   msg(label+' hinzugefügt!','success');
   ['mV','mN','mP','mD','mB','mBeschr'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('mR').value='einfach'; document.getElementById('mKat').value='ÖV-Reise'; toggleManualFields();
+  document.getElementById('mR').value='einfach'; document.getElementById('mKat').value='Reisekosten GSI & VS (öV)'; toggleManualFields();
 }
 
 // ══════════════════════════════════════════
@@ -738,7 +759,7 @@ function getFiltered() {
   const month = document.getElementById('fMonth').value;
   if (month) list = list.filter(t => t.datum && t.datum.startsWith(month));
   const kat = document.getElementById('fKat').value;
-  if (kat !== 'all') list = list.filter(t => (t.kategorie||'ÖV-Reise') === kat);
+  if (kat !== 'all') list = list.filter(t => (t.kategorie||'Reisekosten GSI & VS (öV)') === kat);
   const archive = document.getElementById('fArchive').value;
   if (archive === 'open') list = list.filter(t => !t.archived);
   else if (archive === 'archived') list = list.filter(t => t.archived);
@@ -795,7 +816,7 @@ function renderStats() {
   // KPI cards: Offen + GA-Vergleich
   const openTrips = trips.filter(t => !t.archived);
   const openTotal = openTrips.reduce((s,t) => s+t.preis, 0);
-  const oevTotal = trips.filter(t => (t.kategorie||'ÖV-Reise')==='ÖV-Reise').reduce((s,t) => s+t.preis, 0);
+  const oevTotal = trips.filter(t => (t.kategorie||'').startsWith('Reisekosten')).reduce((s,t) => s+t.preis, 0);
   const gaPreis = 3995;
   const gaDiff = gaPreis - oevTotal;
   const gaPct = Math.min(Math.round(oevTotal / gaPreis * 100), 100);
@@ -818,7 +839,7 @@ function renderStats() {
 
   // By Category
   const kats = {};
-  trips.forEach(t => { const k = t.kategorie || 'ÖV-Reise'; if (!kats[k]) kats[k] = { count: 0, total: 0 }; kats[k].count++; kats[k].total += t.preis; });
+  trips.forEach(t => { const k = t.kategorie || 'Reisekosten GSI & VS (öV)'; if (!kats[k]) kats[k] = { count: 0, total: 0 }; kats[k].count++; kats[k].total += t.preis; });
   const sortedKats = Object.entries(kats).sort((a,b) => b[1].total - a[1].total);
   const maxKat = Math.max(...sortedKats.map(k => k[1].total));
   html += '<div class="stat-section"><div class="stat-title">Nach Kategorie</div><div class="bar-chart">';
@@ -902,9 +923,51 @@ function closeLb(ev){if(ev&&ev.target!==document.getElementById('lb')&&!ev.targe
 // ══════════════════════════════════════════
 // Render
 // ══════════════════════════════════════════
-const KAT_COLORS={'ÖV-Reise':'#1050a0','Essen':'#d97706','Unterkunft':'#7c3aed','Material':'#0891b2','Sonstiges':'#64748b'};
-const KAT_LABELS={'ÖV-Reise':'ÖV','Essen':'Essen','Unterkunft':'Hotel','Material':'Mat.','Sonstiges':'Div.'};
-const KAT_LIST=['ÖV-Reise','Essen','Unterkunft','Material','Sonstiges'];
+const KAT_COLORS={
+  'Reisekosten GSI & VS (öV)':'#1050a0',
+  'Reisekosten GSI & VS (Auto)':'#1050a0',
+  'Reisekosten GSI & VS (Flug)':'#1050a0',
+  'Verpflegung GSI & VS - Mittagessen':'#d97706',
+  'Verpflegung GSI & VS - Abendessen':'#d97706',
+  'Geschäftsessen (Konto fehlt)':'#d97706',
+  'Lebensmittel & Getränke':'#d97706',
+  'Übernachtung GSI & VS':'#7c3aed',
+  'Büromaterial':'#0891b2',
+  'Fachliteratur, Zeitschriften, Abo\'s':'#0891b2',
+  'Sitzungsaufwand extern':'#059669',
+  'PR, Anlässe, Jubiläen':'#059669',
+  'Sonstiger Personalaufwand inkl. Anlässe':'#64748b'
+};
+const KAT_LABELS={
+  'Reisekosten GSI & VS (öV)':'öV',
+  'Reisekosten GSI & VS (Auto)':'Auto',
+  'Reisekosten GSI & VS (Flug)':'Flug',
+  'Verpflegung GSI & VS - Mittagessen':'Mittag',
+  'Verpflegung GSI & VS - Abendessen':'Abend',
+  'Geschäftsessen (Konto fehlt)':'Geschäftsessen',
+  'Lebensmittel & Getränke':'Lebensm.',
+  'Übernachtung GSI & VS':'Hotel',
+  'Büromaterial':'Büro',
+  'Fachliteratur, Zeitschriften, Abo\'s':'Literatur',
+  'Sitzungsaufwand extern':'Sitzung',
+  'PR, Anlässe, Jubiläen':'PR/Anlässe',
+  'Sonstiger Personalaufwand inkl. Anlässe':'Sonstiges'
+};
+const KAT_LIST=[
+  'Reisekosten GSI & VS (öV)',
+  'Reisekosten GSI & VS (Auto)',
+  'Reisekosten GSI & VS (Flug)',
+  'Verpflegung GSI & VS - Mittagessen',
+  'Verpflegung GSI & VS - Abendessen',
+  'Geschäftsessen (Konto fehlt)',
+  'Lebensmittel & Getränke',
+  'Übernachtung GSI & VS',
+  'Büromaterial',
+  'Fachliteratur, Zeitschriften, Abo\'s',
+  'Sitzungsaufwand extern',
+  'PR, Anlässe, Jubiläen',
+  'Sonstiger Personalaufwand inkl. Anlässe'
+];
 function katBadge(k){const c=KAT_COLORS[k]||'#64748b';return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:${c};background:${c}12;padding:2px 7px;border-radius:4px;white-space:nowrap"><span style="width:6px;height:6px;border-radius:50%;background:${c};flex-shrink:0"></span>${KAT_LABELS[k]||k}</span>`}
 function tripLabel(t){return t.von&&t.nach?t.von+(t.retour?' ↔ ':' → ')+t.nach:(t.beschreibung||t.kategorie||'Spese')}
 function tripIcon(t){return katBadge(t.kategorie||'Sonstiges')}
@@ -933,7 +996,7 @@ function render() {
   document.getElementById('filtInfo').textContent=infoparts.join(' · ');
 
   // GA comparison widget
-  const oevTotal = trips.filter(t=>(t.kategorie||'ÖV-Reise')==='ÖV-Reise').reduce((s,t)=>s+t.preis,0);
+  const oevTotal = trips.filter(t=>(t.kategorie||'').startsWith('Reisekosten')).reduce((s,t)=>s+t.preis,0);
   const gaPreis=3995, gaDiff=gaPreis-oevTotal, gaPct=Math.min(Math.round(oevTotal/gaPreis*100),100);
   const gw=document.getElementById('gaWidget');
   gw.innerHTML=`<div class="ga-label">GA-Vergleich</div>
@@ -948,7 +1011,7 @@ function render() {
 
   // Category breakdown
   const katTotals={};
-  filtered.forEach(t=>{const k=t.kategorie||'ÖV-Reise';if(!katTotals[k])katTotals[k]={count:0,total:0};katTotals[k].count++;katTotals[k].total+=t.preis});
+  filtered.forEach(t=>{const k=t.kategorie||'Reisekosten GSI & VS (öV)';if(!katTotals[k])katTotals[k]={count:0,total:0};katTotals[k].count++;katTotals[k].total+=t.preis});
   const katKeys=Object.keys(katTotals).sort((a,b)=>katTotals[b].total-katTotals[a].total);
   const kb=document.getElementById('katBreakdown');
   if(katKeys.length>=1 && n>0){
@@ -972,7 +1035,7 @@ function render() {
       return `<span class="att-chip" onclick="viewAttachment('${f.fileId}','${esc(f.name)}')" title="${esc(f.name)}">${icon}<span class="att-name">${esc(f.name)}</span><span class="att-x" onclick="event.stopPropagation();removeAttachment('${t.id}','${f.fileId}')" title="Entfernen">×</span></span>`;
     }).join('');
     const ti = trips.indexOf(t);
-    const katColor = KAT_COLORS[t.kategorie||'ÖV-Reise']||'#64748b';
+    const katColor = KAT_COLORS[t.kategorie||'Reisekosten GSI & VS (öV)']||'#64748b';
     const belegIndicator = hasFiles 
       ? `<span class="beleg-ok" title="${t.files.length} Beleg(e)"><svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>${t.files.length}</span>`
       : `<span class="beleg-missing" title="Kein Beleg">!</span>`;
@@ -989,7 +1052,7 @@ function render() {
           </div>
         </div>
         <div class="t-bottom">
-          ${katBadge(t.kategorie||'ÖV-Reise')}
+          ${katBadge(t.kategorie||'Reisekosten GSI & VS (öV)')}
           <div class="t-meta">${t.retour?'<span style="color:var(--brand);font-weight:600">Retour</span>':''}${t.datum?'<span>'+fmtD(t.datum)+'</span>':''}${t.klasse?'<span>'+esc(t.klasse)+'</span>':''}</div>
           <div class="t-price">CHF ${t.preis.toFixed(2)}</div>
         </div>
@@ -1052,7 +1115,7 @@ function saveEdit(id){
   const p=parseFloat(document.getElementById('ep-'+id).value),d=document.getElementById('ed-'+id).value;
   const k=document.getElementById('ek-'+id).value,b=document.getElementById('eb-'+id).value.trim();
   const ret=document.getElementById('eret-'+id).value==='retour';
-  const isTrip=kat==='ÖV-Reise';
+  const isTrip=kat.startsWith('Reisekosten');
   if(isTrip&&(!v||!n||isNaN(p))){msg('Von, Nach und Preis ausfüllen.','error');return}
   if(!isTrip&&(!beschr||isNaN(p))){msg('Beschreibung und Preis ausfüllen.','error');return}
   t.kategorie=kat;t.von=isTrip?v:'';t.nach=isTrip?n:'';t.beschreibung=isTrip?'':beschr;
@@ -1089,7 +1152,7 @@ function msg(t,type='info'){const el=document.createElement('div');el.className=
 function csv(){
   const data = getFiltered().length ? getFiltered() : trips;
   const r=['Nr.,Kategorie,Von,Nach,Beschreibung,Art,Preis (CHF),Datum,Klasse,Betreff,Status,Belege'];
-  data.forEach((t,i)=>{const fn=(t.files||[]).map(f=>f.name).join('; ');r.push(`${i+1},"${t.kategorie||'ÖV-Reise'}","${t.von||''}","${t.nach||''}","${t.beschreibung||''}",${t.retour?'Retour':'Einfach'},${t.preis.toFixed(2)},${t.datum||''},${t.klasse||''},"${t.betreff||''}",${t.archived?'Exportiert':'Offen'},"${fn}"`)});
+  data.forEach((t,i)=>{const fn=(t.files||[]).map(f=>f.name).join('; ');r.push(`${i+1},"${t.kategorie||'Reisekosten GSI & VS (öV)'}","${t.von||''}","${t.nach||''}","${t.beschreibung||''}",${t.retour?'Retour':'Einfach'},${t.preis.toFixed(2)},${t.datum||''},${t.klasse||''},"${t.betreff||''}",${t.archived?'Exportiert':'Offen'},"${fn}"`)});
   r.push(`,,,,,,${data.reduce((s,t)=>s+t.preis,0).toFixed(2)},,,,,,`);
   dlFile('spesen.csv','text/csv',r.join('\n'));
 }
@@ -1113,7 +1176,7 @@ function xlsx(){
   data.forEach((t, i) => {
     rows.push([
       i + 1,
-      t.kategorie || 'ÖV-Reise',
+      t.kategorie || 'Reisekosten GSI & VS (öV)',
       t.von || '',
       t.nach || '',
       t.beschreibung || '',
@@ -1177,7 +1240,7 @@ function xlsx(){
   
   // Key metrics
   const avg = totalRow / data.length;
-  const oevXlsx = data.filter(t => (t.kategorie||'ÖV-Reise')==='ÖV-Reise').reduce((s,t) => s+t.preis, 0);
+  const oevXlsx = data.filter(t => (t.kategorie||'').startsWith('Reisekosten')).reduce((s,t) => s+t.preis, 0);
   const openXlsx = data.filter(t => !t.archived);
   sumRows.push(['Anzahl Spesen', data.length]);
   sumRows.push(['Gesamtbetrag', totalRow]);
@@ -1193,7 +1256,7 @@ function xlsx(){
   sumRows.push(['Nach Kategorie', '', '']);
   sumRows.push(['Kategorie', 'Anzahl', 'Betrag (CHF)']);
   const kats = {};
-  data.forEach(t => { const k = t.kategorie || 'ÖV-Reise'; if (!kats[k]) kats[k] = { count: 0, total: 0 }; kats[k].count++; kats[k].total += t.preis; });
+  data.forEach(t => { const k = t.kategorie || 'Reisekosten GSI & VS (öV)'; if (!kats[k]) kats[k] = { count: 0, total: 0 }; kats[k].count++; kats[k].total += t.preis; });
   Object.entries(kats).sort((a, b) => b[1].total - a[1].total).forEach(([k, d]) => {
     sumRows.push([k, d.count, d.total]);
   });
@@ -1289,7 +1352,7 @@ async function sendToOdoo(tripId) {
     `Betreff: ${subject}`,
     '',
     tripLabel(t),
-    t.kategorie && t.kategorie !== 'ÖV-Reise' ? `Kategorie: ${t.kategorie}` : '',
+    t.kategorie && t.kategorie !== 'Reisekosten GSI & VS (öV)' ? `Kategorie: ${t.kategorie}` : '',
     t.datum ? `Datum: ${fmtD(t.datum)}` : '',
     t.klasse || '',
     t.betreff ? `Betreff: ${t.betreff}` : '',
