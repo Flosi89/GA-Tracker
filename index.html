@@ -900,15 +900,27 @@ function renderStats() {
 // ══════════════════════════════════════════
 // Attachments
 // ══════════════════════════════════════════
+function cleanBelegName(trip, originalName, index) {
+  const ext = originalName.includes('.') ? originalName.slice(originalName.lastIndexOf('.')) : '.jpg';
+  const route = trip.von && trip.nach ? trip.von + '-' + trip.nach : (trip.beschreibung || trip.kategorie || 'Spese');
+  const clean = route.replace(/[^a-zA-ZäöüÄÖÜéèêàâ0-9\-]/g, '_');
+  const datum = trip.datum || new Date().toISOString().slice(0, 10);
+  const suffix = index > 1 ? '_' + index : '';
+  return 'Beleg_' + clean + '_' + datum + suffix + ext;
+}
+
 async function attachFile(tid, el) {
   const trip = trips.find(t=>t.id===tid); if(!trip) return;
+  let added = 0;
   for (const file of el.files) {
     if (!file.type.startsWith('image/') && file.type !== 'application/pdf') { msg('Nur Bilder und PDFs.','error'); continue; }
     if (file.size > 20*1024*1024) { msg('Max 20MB pro Datei.','error'); continue; }
     const fid = 'f_'+uid();
-    try { await saveFile(fid, file); trip.files.push({ fileId:fid, name:file.name, type:file.type, size:file.size }); } catch(e) { msg('Fehler: '+e.message,'error'); }
+    const belegName = cleanBelegName(trip, file.name, (trip.files||[]).length + 1);
+    try { await saveFile(fid, file); trip.files.push({ fileId:fid, name:belegName, type:file.type, size:file.size }); added++; } catch(e) { msg('Fehler: '+e.message,'error'); }
   }
-  save(); msg(el.files.length+(el.files.length===1?' Datei':' Dateien')+' angehängt!','success'); el.value='';
+  if (added) { save(); msg(added+(added===1?' Beleg':' Belege')+' angehängt!','success'); }
+  el.value='';
 }
 async function removeAttachment(tid,fid){const t=trips.find(x=>x.id===tid);if(!t)return;await deleteFile(fid).catch(()=>{});t.files=t.files.filter(f=>f.fileId!==fid);save()}
 async function viewAttachment(fid,fn){
@@ -1347,8 +1359,7 @@ async function emailExport() {
         try {
           const fd = await getFile(f.fileId);
           if (fd) {
-            const prefix = (t.von && t.nach ? t.von + '-' + t.nach : t.beschreibung || 'Spese').replace(/[^a-zA-ZäöüÄÖÜ0-9]/g, '_');
-            allFiles.push(new File([new Blob([fd.data], { type: fd.type })], prefix + '_' + fd.name, { type: fd.type }));
+            allFiles.push(new File([new Blob([fd.data], { type: fd.type })], fd.name, { type: fd.type }));
             belegCount++;
           }
         } catch(e) {}
@@ -1637,24 +1648,26 @@ cleanupOrphans();
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
 async function exportZip(){
+  const data=getFiltered().length?getFiltered():trips;
   const allFiles=[];
-  for(const t of trips){if(!t.files||!t.files.length)continue;for(const f of t.files)allFiles.push({tripLabel:t.von+' - '+t.nach+(t.datum?' ('+t.datum+')':''),fileId:f.fileId,name:f.name})}
+  for(const t of data){if(!t.files||!t.files.length)continue;
+    for(const f of t.files)allFiles.push({fileId:f.fileId,name:f.name})}
   if(!allFiles.length){msg('Keine Belege vorhanden.','error');return}
-  const btn=document.getElementById('btnZip');btn.disabled=true;btn.textContent='⏳ ZIP wird erstellt...';
+  const btn=document.getElementById('btnZip');btn.disabled=true;btn.textContent='ZIP wird erstellt...';
   try{
-    const zip=new JSZip();const fm={};let fi=0;
-    for(const af of allFiles){if(!fm[af.tripLabel]){fi++;fm[af.tripLabel]=zip.folder(String(fi).padStart(2,'0')+' '+af.tripLabel.replace(/[\/\\:*?"<>|]/g,'_'))}
-    const fd=await getFile(af.fileId);if(fd)fm[af.tripLabel].file(af.name,fd.data)}
-    const csvR=['Von,Nach,Preis,Datum,Klasse,Betreff,Belege'];
-    trips.forEach(t=>{const fn=(t.files||[]).map(f=>f.name).join('; ');csvR.push('"'+t.von+'","'+t.nach+'",'+t.preis.toFixed(2)+','+(t.datum||'')+','+(t.klasse||'')+','+(t.betreff||'')+',"'+fn+'"')});
-    csvR.push('"","TOTAL",'+trips.reduce((s,t)=>s+t.preis,0).toFixed(2)+',,,');
-    const enc=new TextEncoder(),bom=new Uint8Array([0xEF,0xBB,0xBF]),d=enc.encode(csvR.join('\n')),comb=new Uint8Array(bom.length+d.length);comb.set(bom);comb.set(d,bom.length);
-    zip.file('uebersicht.csv',comb);
+    const zip=new JSZip();const usedNames={};
+    for(const af of allFiles){
+      const fd=await getFile(af.fileId);if(!fd)continue;
+      let name=af.name;
+      if(usedNames[name]){usedNames[name]++;const ext=name.lastIndexOf('.');name=name.slice(0,ext)+'_'+usedNames[name]+name.slice(ext);}
+      else usedNames[name]=1;
+      zip.file(name,fd.data);
+    }
     const blob=await zip.generateAsync({type:'blob'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='sbb-belege-'+new Date().toISOString().slice(0,10)+'.zip';document.body.append(a);a.click();a.remove();
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='spesen-belege-'+new Date().toISOString().slice(0,10)+'.zip';document.body.append(a);a.click();a.remove();
     msg(allFiles.length+' Belege als ZIP exportiert!','success');
   }catch(e){console.error(e);msg('ZIP-Fehler: '+e.message,'error')}
-  btn.disabled=false;btn.textContent='📦 Alle Belege als ZIP exportieren';
+  btn.disabled=false;btn.textContent='Belege als ZIP';
 }
 </script>
 </body>
