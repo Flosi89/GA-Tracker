@@ -50,10 +50,6 @@
   .btn-sbb { flex:1; text-align:center; background:var(--g700); color:white; text-decoration:none; font-size:13px; padding:10px; border-radius:8px; }
   .card-label { font-size: 13px; font-weight: 600; color: var(--g700); margin-bottom: 8px; }
   .url-row { display: flex; gap: 8px; }
-  .btn-paste { padding:11px; border:1px solid var(--g300); border-radius:8px; background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--g600); transition:all 0.15s; }
-  .btn-paste:hover { border-color:var(--g500); color:var(--g900); }
-  .btn-paste:active { transform:scale(0.95); }
-  .btn-paste svg { width:18px; height:18px; }
   .url-input { flex:1; padding:11px 12px; border:1px solid var(--g300); border-radius:8px; font-size:14px; font-family:inherit; outline:none; min-width:0; }
   .url-input:focus { border-color: var(--brand); }
   .url-input::placeholder { color: var(--g400); }
@@ -145,21 +141,10 @@
   .stat-card .sc-sub { font-size:10px; color:var(--g400); margin-top:4px; }
 
   /* Odoo settings */
-  .odoo-setup { background:white; border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin-bottom:12px; }
-  .odoo-setup summary { font-size:13px; font-weight:600; color:var(--g700); cursor:pointer; list-style:none; display:flex; align-items:center; gap:6px; }
-  .odoo-setup summary::before { content:'⚙️'; }
-  .odoo-setup[open] summary { margin-bottom:12px; }
-  .odoo-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  .odoo-grid input { padding:9px 12px; border:1px solid var(--g300); border-radius:8px; font-size:13px; font-family:inherit; outline:none; width:100%; }
-  .odoo-grid input:focus { border-color:var(--brand); }
-  .odoo-hint { font-size:11px; color:var(--g500); margin-top:8px; line-height:1.5; grid-column:1/-1; }
   /* Old button styles removed, using .btn-act now */
   .trip-card.archived { opacity:0.55; }
   .trip-card.archived .trip-main { background:var(--g50); }
   .t-archived-badge { display:inline-block; font-size:10px; background:var(--accent-light); color:var(--accent); padding:2px 6px; border-radius:4px; font-weight:600; margin-left:6px; vertical-align:middle; }
-  .btn-odoo-all { width:100%; padding:10px; border:1px solid #7c3aed; background:#f3e8ff; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; color:#7c3aed; margin-top:4px; }
-  .btn-odoo-all:hover { background:#ede4ff; }
-  .btn-odoo-all:disabled { opacity:0.5; cursor:wait; }
 
   /* Trip cards */
   .trip-list { display:flex; flex-direction:column; gap:8px; }
@@ -219,7 +204,6 @@
   .export-btn:hover { border-color:var(--brand); color:var(--brand); }
   .export-btn.primary { grid-column:1/-1; background:var(--brand); color:white; border-color:var(--brand); font-weight:600; }
   .export-btn.primary:hover { background:var(--brand-dark); }
-  .export-btn.odoo { grid-column:1/-1; background:white; border:1px solid var(--brand); color:var(--brand); font-weight:600; }
   .export-btn:disabled { opacity:0.5; cursor:wait; }
   .btn-danger-text { background:none; border:none; color:var(--g400); font-size:11px; cursor:pointer; font-family:inherit; margin-top:12px; padding:0; }
   .btn-danger-text:hover { color:var(--red); }
@@ -251,9 +235,6 @@
     <!-- Tab: SBB Link -->
     <div class="tab-content" id="tcLink">
       <div class="url-row">
-        <button class="btn-paste" onclick="autoPaste()" title="Einfügen">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-        </button>
         <input type="url" class="url-input" id="urlIn" placeholder="sbb.ch Link einfügen..." autocomplete="off">
         <button class="btn btn-red" onclick="parseUrl()">Lesen</button>
       </div>
@@ -396,20 +377,6 @@
   <div class="empty" id="emp">Noch keine Spesen erfasst.</div>
 
   <!-- Odoo -->
-  <details class="odoo-setup" id="odooSetup" style="display:none;">
-    <summary>Odoo Spesen-Einstellungen</summary>
-    <div class="odoo-grid">
-      <input id="odooEmail" placeholder="spesen@firma.ch" type="email">
-      <input id="odooRef" placeholder="Referenz (z.B. REISE)" value="REISE">
-      <input id="odooSender" placeholder="Mein Absender (z.B. florian@firma.ch)" type="email" style="grid-column:1/-1">
-      <div class="odoo-hint">
-        <strong>Empfänger:</strong> Odoo Spesen-Alias (Spesen → Konfiguration → Einstellungen)<br>
-        <strong>Referenz:</strong> Interne Referenz der Spesenkategorie<br>
-        <strong>Absender:</strong> Deine Arbeits-Email (muss in Odoo hinterlegt sein)
-      </div>
-    </div>
-  </details>
-
   <!-- Export -->
   <details class="export-panel" id="exp" style="display:none">
     <summary>Export &amp; Aktionen</summary>
@@ -417,7 +384,6 @@
       <button class="export-btn primary" onclick="emailExport()" id="btnEmail">Spesen per Email senden</button>
       <button class="export-btn" onclick="xlsx()">Excel (.xlsx)</button>
       <button class="export-btn" onclick="exportZip()" id="btnZip">Belege als ZIP</button>
-      <button class="export-btn odoo" id="btnOdoo" onclick="sendAllToOdoo()">Alle Spesen senden</button>
     </div>
     <button class="btn-danger-text" onclick="clr()">Alle Spesen löschen...</button>
   </details>
@@ -993,8 +959,8 @@ function render() {
   document.getElementById('filterBtn').classList.toggle('active', filtersVisible);
   document.getElementById('statsBtn').classList.toggle('active', statsVisible);
   document.getElementById('filterBar').classList.toggle('show', hasTrips && filtersVisible);
-  if (!hasTrips) { l.innerHTML='';s.classList.remove('show');e.style.display='block';document.getElementById('exp').style.display='none';document.getElementById('statsPanel').classList.remove('show');document.getElementById('odooSetup').style.display='none';return }
-  e.style.display='none';document.getElementById('exp').style.display='';document.getElementById('odooSetup').style.display='';
+  if (!hasTrips) { l.innerHTML='';s.classList.remove('show');e.style.display='block';document.getElementById('exp').style.display='none';document.getElementById('statsPanel').classList.remove('show');return }
+  e.style.display='none';document.getElementById('exp').style.display='';
 
   const tot=filtered.reduce((a,t)=>a+t.preis,0),n=filtered.length;
   const archivedCount=trips.filter(t=>t.archived).length, openCount=trips.length-archivedCount;
@@ -1079,7 +1045,6 @@ function render() {
           <button class="btn-act" onclick="startEdit('${t.id}')" title="Bearbeiten"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg><span>Bearbeiten</span></button>
           <button class="btn-act" onclick="moveTrip('${t.id}',-1)"${ti===0?' disabled':''}><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg><span>Hoch</span></button>
           <button class="btn-act" onclick="moveTrip('${t.id}',1)"${ti===trips.length-1?' disabled':''}><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg><span>Runter</span></button>
-          <button class="btn-act" onclick="sendToOdoo('${t.id}')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg><span>Senden</span></button>
           <button class="btn-act danger" onclick="del('${t.id}')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg><span>Löschen</span></button>
         </div>
       </div>
@@ -1426,200 +1391,8 @@ async function emailExport() {
 }
 
 // ══════════════════════════════════════════
-// Odoo Integration
+// Share Target
 // ══════════════════════════════════════════
-function loadOdooSettings() {
-  const s = JSON.parse(localStorage.getItem('sbb-odoo') || '{}');
-  if (s.email) document.getElementById('odooEmail').value = s.email;
-  if (s.ref) document.getElementById('odooRef').value = s.ref;
-  if (s.sender) document.getElementById('odooSender').value = s.sender;
-}
-function saveOdooSettings() {
-  localStorage.setItem('sbb-odoo', JSON.stringify({
-    email: document.getElementById('odooEmail').value.trim(),
-    ref: document.getElementById('odooRef').value.trim(),
-    sender: document.getElementById('odooSender').value.trim()
-  }));
-}
-document.getElementById('odooEmail').addEventListener('change', saveOdooSettings);
-document.getElementById('odooRef').addEventListener('change', saveOdooSettings);
-document.getElementById('odooSender').addEventListener('change', saveOdooSettings);
-
-function getOdooSettings() {
-  const email = document.getElementById('odooEmail').value.trim();
-  const ref = document.getElementById('odooRef').value.trim() || 'REISE';
-  if (!email) { msg('Bitte zuerst Odoo-Email in den Einstellungen eintragen.', 'error'); document.getElementById('odooSetup').open = true; return null; }
-  return { email, ref };
-}
-
-async function sendToOdoo(tripId) {
-  const cfg = getOdooSettings(); if (!cfg) return;
-  const t = trips.find(x => x.id === tripId); if (!t) return;
-  const sender = document.getElementById('odooSender').value.trim();
-
-  const subject = `${cfg.ref} ${t.preis.toFixed(2)}`;
-  const bodyLines = [
-    `An: ${cfg.email}`,
-    `Betreff: ${subject}`,
-    '',
-    tripLabel(t),
-    t.kategorie && t.kategorie !== 'Reisekosten GSI & VS (öV)' ? `Kategorie: ${t.kategorie}` : '',
-    t.datum ? `Datum: ${fmtD(t.datum)}` : '',
-    t.klasse || '',
-    t.betreff ? `Betreff: ${t.betreff}` : '',
-  ].filter(Boolean).join('\n');
-
-  // Collect files
-  const shareFiles = [];
-  for (const f of (t.files || [])) {
-    try {
-      const fd = await getFile(f.fileId);
-      if (fd) shareFiles.push(new File([new Blob([fd.data], {type:fd.type})], fd.name, {type:fd.type}));
-    } catch(e) {}
-  }
-
-  // Share with files
-  if (shareFiles.length > 0 && navigator.canShare) {
-    try {
-      const shareData = { title: subject, text: bodyLines, files: shareFiles };
-      if (navigator.canShare(shareData)) {
-        await navigator.share(shareData);
-        t.archived = true; save();
-        msg(tripLabel(t) + ' geteilt + archiviert!', 'success');
-        return;
-      }
-    } catch (e) { if (e.name === 'AbortError') return; }
-  }
-
-  // Fallback: mailto
-  const mailto = `mailto:${encodeURIComponent(cfg.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyLines + (shareFiles.length ? '\n\n⚠️ Bitte Beleg manuell anhängen.' : ''))}`;
-  window.location.href = mailto;
-  t.archived = true; save();
-  msg('Email geöffnet. An: ' + cfg.email, 'success');
-}
-
-async function sendAllToOdoo() {
-  const cfg = getOdooSettings(); if (!cfg) return;
-  const filtered = getFiltered();
-  if (!filtered.length) { msg('Keine Spesen zum Senden.', 'error'); return; }
-  const sender = document.getElementById('odooSender').value.trim();
-
-  const btn = document.getElementById('btnOdoo');
-  btn.disabled = true;
-  btn.textContent = '⏳ Wird vorbereitet...';
-
-  const total = filtered.reduce((s,t) => s + t.preis, 0);
-  const subject = `${cfg.ref} Sammelabrechnung CHF ${total.toFixed(2)}`;
-  const lines = filtered.map((t, i) =>
-    `${i+1}. ${tripLabel(t)} | CHF ${t.preis.toFixed(2)}${t.datum ? ' | ' + fmtD(t.datum) : ''}${t.betreff ? ' | ' + t.betreff : ''}`
-  );
-  lines.push('', `TOTAL: CHF ${total.toFixed(2)} (${filtered.length} Spesen)`);
-
-  const bodyText = [
-    `An: ${cfg.email}`,
-    `Betreff: ${subject}`,
-    sender ? `Von: ${sender}` : '',
-    '', ...lines
-  ].filter(Boolean).join('\n');
-
-  // Collect ALL files from all trips into a single ZIP
-  try {
-    const allFiles = [];
-    for (const t of filtered) {
-      for (const f of (t.files || [])) {
-        const fd = await getFile(f.fileId);
-        if (fd) allFiles.push({ name: fd.name, data: fd.data, type: fd.type, trip: tripLabel(t) });
-      }
-    }
-
-    if (allFiles.length > 0 && typeof JSZip !== 'undefined') {
-      // Bundle all files into one ZIP
-      const zip = new JSZip();
-      const usedNames = {};
-      allFiles.forEach(f => {
-        // Avoid duplicate filenames
-        let name = f.name;
-        if (usedNames[name]) { usedNames[name]++; const ext = name.lastIndexOf('.'); name = name.slice(0, ext) + '_' + usedNames[name] + name.slice(ext); }
-        else usedNames[name] = 1;
-        zip.file(name, f.data);
-      });
-      // Add summary CSV
-      const enc = new TextEncoder(), bom = new Uint8Array([0xEF,0xBB,0xBF]);
-      const csvLines = ['Bezeichnung,Preis,Datum,Betreff'];
-      filtered.forEach(t => csvLines.push(`"${tripLabel(t)}",${t.preis.toFixed(2)},${t.datum||''},"${t.betreff||''}"`));
-      csvLines.push(`"TOTAL",${total.toFixed(2)},,`);
-      const csvData = enc.encode(csvLines.join('\n'));
-      const csvCombined = new Uint8Array(bom.length + csvData.length);
-      csvCombined.set(bom); csvCombined.set(csvData, bom.length);
-      zip.file('uebersicht.csv', csvCombined);
-
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-      const zipFile = new File([zipBlob], 'spesen-belege.zip', { type: 'application/zip' });
-
-      if (navigator.canShare && navigator.canShare({ files: [zipFile] })) {
-        try {
-          await navigator.share({ title: subject, text: bodyText, files: [zipFile] });
-          filtered.forEach(t => t.archived = true); save();
-          msg('Sammelabrechnung mit ' + allFiles.length + ' Belegen geteilt + archiviert!', 'success');
-          btn.disabled = false; btn.textContent = '✉️ Alle Spesen senden';
-          return;
-        } catch (e) { if (e.name === 'AbortError') { btn.disabled = false; btn.textContent = '✉️ Alle Spesen senden'; return; } }
-      }
-    }
-
-    // No files or share not available: try share without files
-    if (navigator.canShare) {
-      try {
-        const sd = { title: subject, text: bodyText };
-        if (navigator.canShare(sd)) {
-          await navigator.share(sd);
-          filtered.forEach(t => t.archived = true); save();
-          msg('Sammelabrechnung geteilt + archiviert!', 'success');
-          btn.disabled = false; btn.textContent = '✉️ Alle Spesen senden';
-          return;
-        }
-      } catch (e) { if (e.name === 'AbortError') { btn.disabled = false; btn.textContent = '✉️ Alle Spesen senden'; return; } }
-    }
-  } catch(e) { console.error(e); }
-
-  // Final fallback: mailto
-  const mailto = `mailto:${encodeURIComponent(cfg.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n') + '\n\n⚠️ Bitte Belege als ZIP anhängen.')}`;
-  window.location.href = mailto;
-  filtered.forEach(t => t.archived = true); save();
-  msg('Email geöffnet. Belege separat als ZIP anhängen.', 'success');
-  btn.disabled = false; btn.textContent = '✉️ Alle Spesen senden';
-}
-
-// ══════════════════════════════════════════
-// Auto-Paste & Share Target
-// ══════════════════════════════════════════
-async function autoPaste() {
-  const input = document.getElementById('urlIn');
-  try {
-    if (navigator.clipboard && navigator.clipboard.readText) {
-      const text = await navigator.clipboard.readText();
-      if (text) {
-        const url = extractSbbUrl(text);
-        if (url.includes('sbb')) {
-          input.value = url;
-          parseUrl();
-          return;
-        }
-        input.value = text.trim();
-        input.focus();
-        input.select();
-        return;
-      }
-    }
-  } catch (e) {}
-  // Fallback: focus input for manual paste
-  input.focus();
-  input.value = '';
-  // Try execCommand paste as secondary fallback
-  try { document.execCommand('paste'); if (input.value) { parseUrl(); return; } } catch(e) {}
-  msg('Ins Feld tippen und lange drücken → Einfügen', 'success');
-}
-
 function handleShareTarget() {
   const params = new URLSearchParams(window.location.search);
   const shared = params.get('url') || params.get('text') || params.get('title') || '';
@@ -1640,7 +1413,6 @@ if ('serviceWorker' in navigator) {
 }
 
 // Init
-loadOdooSettings();
 render();
 cleanupOrphans();
 </script>
