@@ -414,10 +414,11 @@
   <details class="export-panel" id="exp" style="display:none">
     <summary>Export &amp; Aktionen</summary>
     <div class="export-grid">
-      <button class="export-btn primary" onclick="xlsx()">Excel Export (.xlsx)</button>
+      <button class="export-btn primary" onclick="emailExport()" id="btnEmail">Spesen per Email senden</button>
+      <button class="export-btn" onclick="xlsx()">Excel (.xlsx)</button>
+      <button class="export-btn" onclick="exportZip()" id="btnZip">Belege als ZIP</button>
       <button class="export-btn" onclick="csv()">CSV</button>
       <button class="export-btn" onclick="jsn()">JSON</button>
-      <button class="export-btn" onclick="exportZip()" id="btnZip">Belege als ZIP</button>
       <button class="export-btn odoo" id="btnOdoo" onclick="sendAllToOdoo()">Alle Spesen senden</button>
     </div>
     <button class="btn-danger-text" onclick="clr()">Alle Spesen löschen...</button>
@@ -1312,6 +1313,90 @@ function xlsx(){
 
   XLSX.writeFile(wb, filename);
   msg('Excel exportiert: ' + filename, 'success');
+}
+
+function xlsxBlob() {
+  const filtered = getFiltered();
+  const data = filtered.length ? filtered : trips;
+  if (!data.length) return null;
+  // Reuse xlsx logic by temporarily capturing
+  const rows=[['Nr.','Kategorie','Von','Nach','Beschreibung','Art','Preis (CHF)','Datum','Klasse','Betreff','Status','Belege']];
+  data.forEach((t,i)=>{rows.push([i+1,t.kategorie||'',t.von||'',t.nach||'',t.beschreibung||'',t.retour?'Retour':'Einfach',t.preis,t.datum||'',t.klasse||'',t.betreff||'',t.archived?'Exportiert':'Offen',(t.files||[]).map(f=>f.name).join('; ')])});
+  const totalRow=data.reduce((s,t)=>s+t.preis,0);
+  rows.push([]);rows.push(['','','','','','TOTAL',totalRow]);
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Spesen');
+  const dates=data.filter(t=>t.datum).map(t=>t.datum).sort();
+  let filename='Spesen';
+  if(dates.length){const f=dates[0].slice(0,7).replace('-',''),t=dates[dates.length-1].slice(0,7).replace('-','');filename+='_'+f+(f!==t?'-'+t:'');}
+  filename+='.xlsx';
+  const wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+  return { blob: new Blob([wbout],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), filename, data };
+}
+
+async function emailExport() {
+  const btn=document.getElementById('btnEmail');
+  btn.disabled=true; btn.textContent='Wird vorbereitet...';
+
+  try {
+    // 1. Generate Excel
+    const xl = xlsxBlob();
+    if (!xl) { msg('Keine Spesen zum Exportieren.','error'); btn.disabled=false; btn.textContent='Spesen per Email senden'; return; }
+
+    const files = [new File([xl.blob], xl.filename, { type: xl.blob.type })];
+
+    // 2. Collect all receipts
+    let belegCount = 0;
+    for (const t of xl.data) {
+      for (const f of (t.files || [])) {
+        try {
+          const fd = await getFile(f.fileId);
+          if (fd) {
+            // Prefix with trip info for clarity
+            const prefix = (t.von && t.nach ? t.von + '-' + t.nach : t.beschreibung || 'Spese').replace(/[^a-zA-ZäöüÄÖÜ0-9]/g, '_');
+            const name = prefix + '_' + fd.name;
+            files.push(new File([new Blob([fd.data], { type: fd.type })], name, { type: fd.type }));
+            belegCount++;
+          }
+        } catch(e) {}
+      }
+    }
+
+    // 3. Build summary text
+    const total = xl.data.reduce((s,t) => s+t.preis, 0);
+    const text = [
+      'Spesenabrechnung',
+      '',
+      xl.data.map((t,i) => `${i+1}. ${tripLabel(t)} | CHF ${t.preis.toFixed(2)}${t.datum ? ' | ' + fmtD(t.datum) : ''}${t.betreff ? ' | ' + t.betreff : ''}`).join('\n'),
+      '',
+      `TOTAL: CHF ${total.toFixed(2)} (${xl.data.length} Spesen, ${belegCount} Belege)`,
+    ].join('\n');
+
+    // 4. Try Web Share API
+    if (navigator.canShare && navigator.canShare({ files })) {
+      await navigator.share({
+        title: 'Spesenabrechnung CHF ' + total.toFixed(2),
+        text: text,
+        files: files
+      });
+      msg('Spesenabrechnung mit ' + files.length + ' Dateien geteilt!', 'success');
+      // Auto-archive
+      xl.data.forEach(t => t.archived = true);
+      save();
+    } else {
+      // Fallback: download Excel + open mailto
+      XLSX.writeFile(XLSX.read(await xl.blob.arrayBuffer()), xl.filename);
+      const mailto = `mailto:?subject=${encodeURIComponent('Spesenabrechnung CHF ' + total.toFixed(2))}&body=${encodeURIComponent(text + '\n\nExcel und Belege separat anhängen.')}`;
+      window.location.href = mailto;
+      msg('Excel heruntergeladen. Bitte Belege manuell anhängen.', 'success');
+    }
+  } catch(e) {
+    if (e.name === 'AbortError') { /* user cancelled */ }
+    else msg('Fehler: ' + e.message, 'error');
+  }
+
+  btn.disabled=false; btn.textContent='Spesen per Email senden';
 }
 
 // ══════════════════════════════════════════
