@@ -417,8 +417,6 @@
       <button class="export-btn primary" onclick="emailExport()" id="btnEmail">Spesen per Email senden</button>
       <button class="export-btn" onclick="xlsx()">Excel (.xlsx)</button>
       <button class="export-btn" onclick="exportZip()" id="btnZip">Belege als ZIP</button>
-      <button class="export-btn" onclick="csv()">CSV</button>
-      <button class="export-btn" onclick="jsn()">JSON</button>
       <button class="export-btn odoo" id="btnOdoo" onclick="sendAllToOdoo()">Alle Spesen senden</button>
     </div>
     <button class="btn-danger-text" onclick="clr()">Alle Spesen löschen...</button>
@@ -1150,14 +1148,6 @@ function msg(t,type='info'){const el=document.createElement('div');el.className=
 // ══════════════════════════════════════════
 // Export
 // ══════════════════════════════════════════
-function csv(){
-  const data = getFiltered().length ? getFiltered() : trips;
-  const r=['Nr.,Kategorie,Von,Nach,Beschreibung,Art,Preis (CHF),Datum,Klasse,Betreff,Status,Belege'];
-  data.forEach((t,i)=>{const fn=(t.files||[]).map(f=>f.name).join('; ');r.push(`${i+1},"${t.kategorie||'Reisekosten GSI & VS (öV)'}","${t.von||''}","${t.nach||''}","${t.beschreibung||''}",${t.retour?'Retour':'Einfach'},${t.preis.toFixed(2)},${t.datum||''},${t.klasse||''},"${t.betreff||''}",${t.archived?'Exportiert':'Offen'},"${fn}"`)});
-  r.push(`,,,,,,${data.reduce((s,t)=>s+t.preis,0).toFixed(2)},,,,,,`);
-  dlFile('spesen.csv','text/csv',r.join('\n'));
-}
-function jsn(){const tot=trips.reduce((s,t)=>s+t.preis,0);dlFile('spesen.json','application/json',JSON.stringify({spesen:trips,total:Math.round(tot*100)/100,anzahl:trips.length},null,2))}
 function dlFile(n,t,c){
   let blob;
   if(t.includes('csv')){const enc=new TextEncoder(),bom=new Uint8Array([0xEF,0xBB,0xBF]),d=enc.encode(c),combined=new Uint8Array(bom.length+d.length);combined.set(bom);combined.set(d,bom.length);blob=new Blob([combined],{type:'text/csv'})}
@@ -1340,60 +1330,85 @@ async function emailExport() {
   btn.disabled=true; btn.textContent='Wird vorbereitet...';
 
   try {
+    const filtered = getFiltered();
+    const data = filtered.length ? filtered : trips;
+    if (!data.length) { msg('Keine Spesen zum Exportieren.','error'); btn.disabled=false; btn.textContent='Spesen per Email senden'; return; }
+
     // 1. Generate Excel
     const xl = xlsxBlob();
-    if (!xl) { msg('Keine Spesen zum Exportieren.','error'); btn.disabled=false; btn.textContent='Spesen per Email senden'; return; }
+    if (!xl) { msg('Export fehlgeschlagen.','error'); btn.disabled=false; btn.textContent='Spesen per Email senden'; return; }
 
-    const files = [new File([xl.blob], xl.filename, { type: xl.blob.type })];
-
-    // 2. Collect all receipts
+    // 2. Collect all receipts into files array
+    const allFiles = [new File([xl.blob], xl.filename, { type: xl.blob.type })];
     let belegCount = 0;
-    for (const t of xl.data) {
+
+    for (const t of data) {
       for (const f of (t.files || [])) {
         try {
           const fd = await getFile(f.fileId);
           if (fd) {
-            // Prefix with trip info for clarity
             const prefix = (t.von && t.nach ? t.von + '-' + t.nach : t.beschreibung || 'Spese').replace(/[^a-zA-ZäöüÄÖÜ0-9]/g, '_');
-            const name = prefix + '_' + fd.name;
-            files.push(new File([new Blob([fd.data], { type: fd.type })], name, { type: fd.type }));
+            allFiles.push(new File([new Blob([fd.data], { type: fd.type })], prefix + '_' + fd.name, { type: fd.type }));
             belegCount++;
           }
         } catch(e) {}
       }
     }
 
-    // 3. Build summary text
-    const total = xl.data.reduce((s,t) => s+t.preis, 0);
-    const text = [
-      'Spesenabrechnung',
-      '',
-      xl.data.map((t,i) => `${i+1}. ${tripLabel(t)} | CHF ${t.preis.toFixed(2)}${t.datum ? ' | ' + fmtD(t.datum) : ''}${t.betreff ? ' | ' + t.betreff : ''}`).join('\n'),
-      '',
-      `TOTAL: CHF ${total.toFixed(2)} (${xl.data.length} Spesen, ${belegCount} Belege)`,
-    ].join('\n');
+    // 3. Summary text
+    const total = data.reduce((s,t) => s+t.preis, 0);
+    const lines = data.map((t,i) => `${i+1}. ${tripLabel(t)} | CHF ${t.preis.toFixed(2)}${t.datum ? ' | ' + fmtD(t.datum) : ''}${t.betreff ? ' | ' + t.betreff : ''}`);
+    const text = 'Spesenabrechnung\n\n' + lines.join('\n') + '\n\nTOTAL: CHF ' + total.toFixed(2) + ' (' + data.length + ' Spesen, ' + belegCount + ' Belege)';
 
-    // 4. Try Web Share API
-    if (navigator.canShare && navigator.canShare({ files })) {
-      await navigator.share({
-        title: 'Spesenabrechnung CHF ' + total.toFixed(2),
-        text: text,
-        files: files
-      });
-      msg('Spesenabrechnung mit ' + files.length + ' Dateien geteilt!', 'success');
-      // Auto-archive
-      xl.data.forEach(t => t.archived = true);
+    // 4. Try sharing all files together
+    let shared = false;
+    if (navigator.canShare) {
+      try {
+        const shareData = { title: 'Spesenabrechnung CHF ' + total.toFixed(2), text: text, files: allFiles };
+        if (navigator.canShare(shareData)) {
+          await navigator.share(shareData);
+          shared = true;
+        }
+      } catch(e) {
+        if (e.name === 'AbortError') { btn.disabled=false; btn.textContent='Spesen per Email senden'; return; }
+      }
+
+      // 5. If too many files, try ZIP fallback
+      if (!shared && allFiles.length > 2 && typeof JSZip !== 'undefined') {
+        try {
+          const zip = new JSZip();
+          zip.file(xl.filename, xl.blob);
+          for (let i = 1; i < allFiles.length; i++) {
+            zip.file(allFiles[i].name, await allFiles[i].arrayBuffer());
+          }
+          const zipBlob = await zip.generateAsync({ type: 'blob' });
+          const zipFile = new File([zipBlob], xl.filename.replace('.xlsx', '_mit_Belegen.zip'), { type: 'application/zip' });
+          const zipShare = { title: 'Spesenabrechnung CHF ' + total.toFixed(2), text: text, files: [zipFile] };
+          if (navigator.canShare(zipShare)) {
+            await navigator.share(zipShare);
+            shared = true;
+          }
+        } catch(e) {
+          if (e.name === 'AbortError') { btn.disabled=false; btn.textContent='Spesen per Email senden'; return; }
+        }
+      }
+    }
+
+    if (shared) {
+      msg('Spesenabrechnung mit ' + belegCount + ' Belegen geteilt!', 'success');
+      data.forEach(t => t.archived = true);
       save();
     } else {
-      // Fallback: download Excel + open mailto
-      XLSX.writeFile(XLSX.read(await xl.blob.arrayBuffer()), xl.filename);
-      const mailto = `mailto:?subject=${encodeURIComponent('Spesenabrechnung CHF ' + total.toFixed(2))}&body=${encodeURIComponent(text + '\n\nExcel und Belege separat anhängen.')}`;
-      window.location.href = mailto;
-      msg('Excel heruntergeladen. Bitte Belege manuell anhängen.', 'success');
+      // Final fallback: download files separately
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(xl.blob);
+      a.download = xl.filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      msg('Excel heruntergeladen. Teilen-Dialog nicht verfügbar.', 'success');
     }
   } catch(e) {
-    if (e.name === 'AbortError') { /* user cancelled */ }
-    else msg('Fehler: ' + e.message, 'error');
+    msg('Fehler: ' + e.message, 'error');
   }
 
   btn.disabled=false; btn.textContent='Spesen per Email senden';
