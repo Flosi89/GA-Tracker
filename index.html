@@ -47,7 +47,6 @@
   .pv-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
   .pv-grid input, .pv-grid select { padding:9px 10px; border:1px solid var(--g300); border-radius:8px; font-size:13px; font-family:inherit; background:white; outline:none; width:100%; }
   .pv-grid input:focus, .pv-grid select:focus { border-color:var(--brand); }
-  .btn-sbb { flex:1; text-align:center; background:var(--g700); color:white; text-decoration:none; font-size:13px; padding:10px; border-radius:8px; }
   .card-label { font-size: 13px; font-weight: 600; color: var(--g700); margin-bottom: 8px; }
   .url-row { display: flex; gap: 8px; }
   .url-input { flex:1; padding:11px 12px; border:1px solid var(--g300); border-radius:8px; font-size:14px; font-family:inherit; outline:none; min-width:0; }
@@ -58,12 +57,32 @@
   .btn-red { background: var(--brand); color: white; }
   .btn-red:hover { background: var(--brand-dark); }
   .btn-green { background: var(--accent); color: white; }
-  .preview { background:var(--g50); border:1px solid var(--g200); border-radius:10px; padding:14px; margin-top:12px; display:none; }
+  .preview { background:var(--g50); border:1px solid var(--g200); border-radius:10px; padding:16px; margin-top:12px; display:none; }
   .preview.show { display: block; }
-  .preview-route { font-size:17px; font-weight:700; }
+  .input-hint { font-size:12px; color:var(--g500); margin-bottom:10px; line-height:1.4; }
+  .pv-route-card { background:white; border:1px solid var(--g200); border-radius:8px; padding:12px; margin-bottom:14px; }
+  .preview-route { font-size:18px; font-weight:700; color:var(--g900); }
   .preview-via { font-size:12px; color:var(--g500); margin-top:2px; display:none; }
   .preview-meta { font-size:13px; color:var(--g600); margin-top:4px; }
-  .price-preview { margin-top:8px; padding:8px 12px; background:var(--brand-light); border-radius:8px; font-size:13px; font-weight:600; color:var(--brand); text-align:center; }
+  .pv-price-row { margin-bottom:12px; }
+  .pv-price-label { font-size:12px; font-weight:600; color:var(--g600); margin-bottom:4px; display:block; }
+  .pv-price-input { display:flex; align-items:center; gap:8px; background:white; border:2px solid var(--brand); border-radius:10px; padding:12px 14px; }
+  .pv-chf { font-size:16px; font-weight:700; color:var(--brand); }
+  .pv-price-input input { border:none; outline:none; font-size:20px; font-weight:700; font-family:inherit; width:100%; background:none; }
+  .pv-price-input input::placeholder { color:var(--g400); font-weight:400; }
+  .pv-art-row { display:flex; gap:8px; margin-bottom:10px; }
+  .pv-art-row select { flex:1; padding:10px; border:1px solid var(--g300); border-radius:8px; font-size:13px; font-family:inherit; background:white; }
+  .pv-details { margin-bottom:12px; }
+  .pv-details summary { font-size:12px; color:var(--brand); cursor:pointer; font-weight:600; list-style:none; }
+  .pv-details summary::before { content:'+ '; }
+  .pv-details[open] summary::before { content:'− '; }
+  .pv-betreff-input { width:100%; padding:9px 12px; border:1px solid var(--g300); border-radius:8px; font-size:13px; font-family:inherit; outline:none; margin-top:6px; }
+  .pv-betreff-input:focus { border-color:var(--brand); }
+  .pv-actions { display:flex; flex-direction:column; gap:8px; }
+  .pv-submit { width:100%; padding:14px; font-size:15px; border-radius:10px; }
+  .pv-sbb-link { text-align:center; font-size:12px; color:var(--g500); text-decoration:none; padding:4px; }
+  .pv-sbb-link:hover { color:var(--brand); }
+  .price-preview { margin:8px 0; padding:10px 12px; background:var(--brand-light); border-radius:8px; font-size:14px; font-weight:600; color:var(--brand); text-align:center; }
   .msg { padding:12px 16px; border-radius:var(--radius); margin-bottom:12px; font-size:13px; line-height:1.5; }
   .msg-error { background:var(--red-light); border:1px solid #ffcdd2; color:#c62828; }
   .msg-success { background:var(--accent-light); border:1px solid var(--accent); color:#1a7a1e; }
@@ -234,24 +253,36 @@
 
     <!-- Tab: SBB Link -->
     <div class="tab-content" id="tcLink">
+      <p class="input-hint">In der SBB App: Verbindung wählen → Teilen → Link kopieren → hier einfügen</p>
       <div class="url-row">
-        <input type="url" class="url-input" id="urlIn" placeholder="sbb.ch Link einfügen..." autocomplete="off">
+        <input type="url" class="url-input" id="urlIn" placeholder="Link hier einfügen..." autocomplete="off">
         <button class="btn btn-red" onclick="parseUrl()">Lesen</button>
       </div>
       <div class="preview" id="pv">
-        <div class="preview-route" id="pvR"></div>
-        <div class="preview-via" id="pvV"></div>
-        <div class="preview-meta" id="pvM"></div>
-        <div class="pv-grid">
-          <div class="filter-cell"><label>Preis (einfach)</label><div style="display:flex;align-items:center;gap:4px"><span style="color:var(--g500);font-weight:600;font-size:13px">CHF</span><input type="number" step="0.05" id="pvP" placeholder="0.00" inputmode="decimal" oninput="updatePricePreview()"></div></div>
-          <div class="filter-cell"><label>Klasse</label><select id="pvK"><option value="2. Klasse">2. Klasse</option><option value="1. Klasse">1. Klasse</option></select></div>
-          <div class="filter-cell"><label>Art</label><select id="pvR2" onchange="updatePricePreview()"><option value="einfach">Einfach</option><option value="retour">Retour</option></select></div>
-          <div class="filter-cell"><label>Betreff</label><input type="text" id="pvB" placeholder="optional"></div>
+        <div class="pv-route-card">
+          <div class="preview-route" id="pvR"></div>
+          <div class="preview-via" id="pvV"></div>
+          <div class="preview-meta" id="pvM"></div>
+        </div>
+        <div class="pv-price-row">
+          <label class="pv-price-label">Preis einfache Fahrt</label>
+          <div class="pv-price-input">
+            <span class="pv-chf">CHF</span>
+            <input type="number" step="0.05" id="pvP" placeholder="0.00" inputmode="decimal" oninput="updatePricePreview()" autofocus>
+          </div>
+        </div>
+        <div class="pv-art-row">
+          <select id="pvR2" onchange="updatePricePreview()"><option value="einfach">Einfach</option><option value="retour">Retour</option></select>
+          <select id="pvK"><option value="2. Klasse">2. Klasse</option><option value="1. Klasse">1. Klasse</option></select>
         </div>
         <div class="price-preview" id="pricePreview" style="display:none"></div>
-        <div style="display:flex;gap:8px;margin-top:12px;">
-          <a class="btn btn-sbb" id="pvSbbLink" href="#" target="_blank" rel="noopener">SBB öffnen</a>
-          <button class="btn btn-green" style="flex:2;" onclick="confirmTrip()">Hinzufügen</button>
+        <details class="pv-details">
+          <summary>Betreff hinzufügen</summary>
+          <input type="text" id="pvB" placeholder="z.B. Projektname, Anlass..." class="pv-betreff-input">
+        </details>
+        <div class="pv-actions">
+          <button class="btn btn-green pv-submit" onclick="confirmTrip()">Spese erfassen</button>
+          <a class="pv-sbb-link" id="pvSbbLink" href="#" target="_blank" rel="noopener">SBB Verbindung öffnen →</a>
         </div>
       </div>
     </div>
